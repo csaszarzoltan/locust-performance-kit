@@ -19,13 +19,8 @@ from datetime import datetime
 from pathlib import Path
 
 from locust_templates.report_data import (
-    EndpointStats,
-    ExceptionRecord,
-    FailureRecord,
     ReportData,
-    ReportSummary,
 )
-
 
 # ──────────────────────────────────────────────────────────────
 # Abstract base

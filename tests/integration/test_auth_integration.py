@@ -1,10 +1,14 @@
 """Integration tests for the pluggable auth system.
 
 Tests cover:
-  - OAuth2 client_credentials flow end-to-end with responses mocking
+  - OAuth2 client_credentials flow end-to-end with mocked HTTP
   - APIUser lifecycle (on_start → task → _get_token) with each provider
   - Config loading with auth env vars set
   - Backwards compatibility: no auth provider configured → static token works
+
+HTTP calls are mocked with ``unittest.mock.patch`` (same pattern as
+``tests/unit/test_auth.py``) to avoid gevent / responses import-order
+conflicts with locust's SSL monkey-patching.
 """
 
 from __future__ import annotations
@@ -14,18 +18,15 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
-import responses
 
 from locust_templates.auth import (
-    AuthConfigError,
     AuthenticationError,
+    EnvTokenAuthenticator,
     OAuth2ClientCredentialsAuthenticator,
     StaticTokenAuthenticator,
-    EnvTokenAuthenticator,
     create_authenticator,
 )
 from locust_templates.config import LoadTestConfig, load_config
-
 
 # ──────────────────────────────────────────────────────────────
 # Fixtures
@@ -42,242 +43,201 @@ def reset_oauth2_shared_state():
     OAuth2ClientCredentialsAuthenticator._shared_expires_at = 0.0
 
 
+def _mock_token_response(
+    token: str = "mock_tok",
+    expires_in: int = 3600,
+    status: int = 200,
+    body: str | None = None,
+) -> MagicMock:
+    """Build a MagicMock that looks like a requests.Response."""
+    resp = MagicMock()
+    resp.status_code = status
+    if body is not None:
+        resp.text = body
+        resp.json.side_effect = Exception("not JSON")
+    else:
+        resp.json.return_value = {
+            "access_token": token,
+            "expires_in": expires_in,
+        }
+    resp.raise_for_status.return_value = None
+    return resp
+
+
 # ──────────────────────────────────────────────────────────────
-# OAuth2 end-to-end with `responses` mocking
+# OAuth2 end-to-end with mocked HTTP
 # ──────────────────────────────────────────────────────────────
 
 
 class TestOAuth2EndToEnd:
-    """End-to-end OAuth2 client_credentials flow using the `responses` lib."""
+    """End-to-end OAuth2 client_credentials flow using mocked requests."""
 
     TOKEN_URL = "https://auth.example.com/oauth/token"
 
-    @responses.activate
-    def test_full_oauth2_flow_returns_valid_token(self):
-        """POST to token endpoint → access_token cached → headers returned."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={
-                "access_token": "e2e_token_abc",
-                "token_type": "Bearer",
-                "expires_in": 3600,
-            },
-            status=200,
-        )
-
-        auth = OAuth2ClientCredentialsAuthenticator(
+    def _make_auth(self, **kwargs):
+        """Helper: create an OAuth2 authenticator with required args."""
+        defaults = dict(
             token_url=self.TOKEN_URL,
             client_id="e2e_client",
             client_secret="e2e_secret",
         )
-        auth.authenticate()
-        headers = auth.get_headers()
+        defaults.update(kwargs)
+        return OAuth2ClientCredentialsAuthenticator(**defaults)
+
+    def test_full_oauth2_flow_returns_valid_token(self):
+        """POST to token endpoint → access_token cached → headers returned."""
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("e2e_token_abc")
+            auth = self._make_auth()
+            auth.authenticate()
+            headers = auth.get_headers()
 
         assert headers == {"Authorization": "Bearer e2e_token_abc"}
 
-    @responses.activate
     def test_oauth2_sends_client_credentials_grant_type(self):
         """The POST body must contain grant_type=client_credentials."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "tok", "expires_in": 3600},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response()
+            auth = self._make_auth(client_id="cid", client_secret="csec")
+            auth.authenticate()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        auth.authenticate()
+            assert mock_req.post.call_count == 1
+            call_kwargs = mock_req.post.call_args
+            data = call_kwargs[1].get("data", {})
+            assert data["grant_type"] == "client_credentials"
+            assert data["client_id"] == "cid"
+            assert data["client_secret"] == "csec"
 
-        assert len(responses.calls) == 1
-        call = responses.calls[0]
-        body = str(call.request.body)
-        assert "grant_type=client_credentials" in body
-        assert "client_id=cid" in body
-        assert "client_secret=csec" in body
-
-    @responses.activate
     def test_oauth2_includes_scope_when_set(self):
-        """When scope is provided, it appears in the POST body."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "tok_scoped", "expires_in": 3600},
-            status=200,
-        )
+        """When scope is provided, it appears in the POST data."""
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("scoped_tok")
+            auth = self._make_auth(scope="read write")
+            auth.authenticate()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-            scope="read write",
-        )
-        auth.authenticate()
+            data = mock_req.post.call_args[1]["data"]
+            assert data["scope"] == "read write"
 
-        body = str(responses.calls[0].request.body)
-        assert "scope=read+write" in body or "scope=read write" in body
-
-    @responses.activate
     def test_oauth2_caches_token_across_multiple_calls(self):
         """Multiple authenticate() calls → only one HTTP POST."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "cached_tok", "expires_in": 3600},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("cached_tok")
+            auth = self._make_auth()
+            auth.authenticate()
+            auth.authenticate()
+            auth.get_headers()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        auth.authenticate()
-        auth.authenticate()
-        auth.get_headers()
+            assert mock_req.post.call_count == 1
 
-        assert len(responses.calls) == 1
-
-    @responses.activate
     def test_oauth2_refreshes_after_expiry(self):
         """When token expires, a new POST is made to refresh."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "first_tok", "expires_in": 3600},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("first_tok")
+            auth = self._make_auth()
+            auth.authenticate()
+            assert mock_req.post.call_count == 1
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        auth.authenticate()
-        assert len(responses.calls) == 1
+            # Expire the token
+            OAuth2ClientCredentialsAuthenticator._shared_expires_at = (
+                time.monotonic() - 1
+            )
 
-        # Expire the token
-        OAuth2ClientCredentialsAuthenticator._shared_expires_at = (
-            time.monotonic() - 1
-        )
+            # Update mock for refresh response
+            mock_req.post.return_value = _mock_token_response("refreshed_tok")
+            headers = auth.get_headers()
 
-        # Add the refresh response
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "refreshed_tok", "expires_in": 3600},
-            status=200,
-        )
+            assert mock_req.post.call_count == 2
+            assert headers == {"Authorization": "Bearer refreshed_tok"}
 
-        headers = auth.get_headers()
-        assert len(responses.calls) == 2
-        assert headers == {"Authorization": "Bearer refreshed_tok"}
-
-    @responses.activate
     def test_oauth2_raises_on_500_response(self):
         """HTTP 500 from token endpoint → AuthenticationError."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"error": "server_error"},
-            status=500,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = MagicMock(
+                status_code=500, text="server error"
+            )
+            auth = self._make_auth()
+            with pytest.raises(AuthenticationError):
+                auth.authenticate()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        with pytest.raises(AuthenticationError):
-            auth.authenticate()
-
-    @responses.activate
     def test_oauth2_raises_on_missing_access_token(self):
         """Response without access_token → AuthenticationError."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"error": "invalid_client"},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = MagicMock(status_code=200)
+            mock_req.post.return_value.json.return_value = {
+                "error": "invalid_client"
+            }
+            auth = self._make_auth()
+            with pytest.raises(AuthenticationError):
+                auth.authenticate()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        with pytest.raises(AuthenticationError):
-            auth.authenticate()
-
-    @responses.activate
     def test_oauth2_raises_on_invalid_json(self):
         """Non-JSON response → AuthenticationError."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            body="<html>Bad Gateway</html>",
-            status=502,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response(
+                body="<html>Bad Gateway</html>", status=502
+            )
+            auth = self._make_auth()
+            with pytest.raises(AuthenticationError):
+                auth.authenticate()
 
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        with pytest.raises(AuthenticationError):
-            auth.authenticate()
-
-    @responses.activate
     def test_oauth2_shared_cache_across_instances(self):
         """Two separate instances share the same cached token."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "shared_e2e_tok", "expires_in": 3600},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("shared_e2e")
+            auth1 = self._make_auth()
+            auth2 = self._make_auth()
+            auth1.authenticate()
+            headers2 = auth2.get_headers()
 
-        auth1 = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        auth2 = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-        )
-        auth1.authenticate()
-        headers2 = auth2.get_headers()
+            assert mock_req.post.call_count == 1
+            assert headers2 == {"Authorization": "Bearer shared_e2e"}
 
-        assert len(responses.calls) == 1
-        assert headers2 == {"Authorization": "Bearer shared_e2e_tok"}
-
-    @responses.activate
     def test_oauth2_custom_header_name_and_format(self):
         """Custom header_name and header_format are respected end-to-end."""
-        responses.add(
-            responses.POST,
-            self.TOKEN_URL,
-            json={"access_token": "custom_tok", "expires_in": 3600},
-            status=200,
-        )
-
-        auth = OAuth2ClientCredentialsAuthenticator(
-            token_url=self.TOKEN_URL,
-            client_id="cid",
-            client_secret="csec",
-            header_name="X-API-Key",
-            header_format="Token {token}",
-        )
-        auth.authenticate()
-        headers = auth.get_headers()
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response("custom_tok")
+            auth = self._make_auth(
+                header_name="X-API-Key",
+                header_format="Token {token}",
+            )
+            auth.authenticate()
+            headers = auth.get_headers()
 
         assert headers == {"X-API-Key": "Token custom_tok"}
+
+    def test_oauth2_network_error_raises_authentication_error(self):
+        """Network error during token request → AuthenticationError."""
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.side_effect = ConnectionError("DNS resolution failed")
+            auth = self._make_auth()
+            with pytest.raises(AuthenticationError):
+                auth.authenticate()
+
+    def test_oauth2_env_var_fallback_e2e(self):
+        """Constructor args None + env vars set → full flow works."""
+        env = {
+            "LOCUST_OAUTH_TOKEN_URL": self.TOKEN_URL,
+            "LOCUST_OAUTH_CLIENT_ID": "env_client",
+            "LOCUST_OAUTH_CLIENT_SECRET": "env_secret",
+        }
+        with (
+            patch.dict(os.environ, env, clear=False),
+            patch("locust_templates.auth.requests") as mock_req,
+        ):
+            mock_req.post.return_value = _mock_token_response(
+                "env_fallback_e2e"
+            )
+            auth = OAuth2ClientCredentialsAuthenticator(
+                token_url=None,
+                client_id=None,
+                client_secret=None,
+            )
+            auth.authenticate()
+
+        assert (
+            OAuth2ClientCredentialsAuthenticator._shared_token
+            == "env_fallback_e2e"
+        )
 
 
 # ──────────────────────────────────────────────────────────────
@@ -315,30 +275,26 @@ class TestAPIUserLifecycle:
             token = user._get_token()
             assert token == "env_lifecycle_tok"
 
-    @responses.activate
     def test_lifecycle_with_oauth2_provider(self):
         """on_start → _get_token with oauth2 provider fetches a token."""
         from locust_templates.api_load import APIUser
 
-        responses.add(
-            responses.POST,
-            "https://auth.example.com/token",
-            json={"access_token": "oauth_lifecycle_tok", "expires_in": 3600},
-            status=200,
-        )
+        with patch("locust_templates.auth.requests") as mock_req:
+            mock_req.post.return_value = _mock_token_response(
+                "oauth_lifecycle_tok"
+            )
+            user = APIUser.__new__(APIUser)
+            user.auth_provider = "oauth2-client-credentials"
+            user.auth_kwargs = {
+                "token_url": "https://auth.example.com/token",
+                "client_id": "lc_id",
+                "client_secret": "lc_secret",
+            }
+            user.on_start()
 
-        user = APIUser.__new__(APIUser)
-        user.auth_provider = "oauth2-client-credentials"
-        user.auth_kwargs = {
-            "token_url": "https://auth.example.com/token",
-            "client_id": "lc_id",
-            "client_secret": "lc_secret",
-        }
-        user.on_start()
-
-        assert user._authenticator is not None
-        token = user._get_token()
-        assert token == "oauth_lifecycle_tok"
+            assert user._authenticator is not None
+            token = user._get_token()
+            assert token == "oauth_lifecycle_tok"
 
     def test_on_start_fallback_on_auth_failure(self):
         """When auth setup fails, _authenticator is None and _get_token falls back."""
@@ -381,6 +337,20 @@ class TestAPIUserLifecycle:
         # When format is "{token}", there's no "Bearer " prefix
         assert token == "raw_token"
 
+    def test_lifecycle_multiple_tasks_share_token(self):
+        """Multiple _get_token() calls return the same cached token."""
+        from locust_templates.api_load import APIUser
+
+        user = APIUser.__new__(APIUser)
+        user.auth_provider = "static"
+        user.auth_kwargs = {"token": "multi_call_tok"}
+        user.on_start()
+
+        t1 = user._get_token()
+        t2 = user._get_token()
+        t3 = user._get_token()
+        assert t1 == t2 == t3 == "multi_call_tok"
+
 
 # ──────────────────────────────────────────────────────────────
 # Config loading with auth env vars
@@ -392,19 +362,25 @@ class TestConfigAuthEnvVars:
 
     def test_auth_provider_from_env(self):
         """LOCUST_AUTH_PROVIDER sets config.auth_provider."""
-        with patch.dict(os.environ, {"LOCUST_AUTH_PROVIDER": "oauth2-client-credentials"}):
+        with patch.dict(
+            os.environ, {"LOCUST_AUTH_PROVIDER": "oauth2-client-credentials"}
+        ):
             config = LoadTestConfig.from_env()
             assert config.auth_provider == "oauth2-client-credentials"
 
     def test_auth_client_id_from_env(self):
         """LOCUST_AUTH_CLIENT_ID sets config.auth_client_id."""
-        with patch.dict(os.environ, {"LOCUST_AUTH_CLIENT_ID": "cfg_client_id"}):
+        with patch.dict(
+            os.environ, {"LOCUST_AUTH_CLIENT_ID": "cfg_client_id"}
+        ):
             config = LoadTestConfig.from_env()
             assert config.auth_client_id == "cfg_client_id"
 
     def test_auth_client_secret_from_env(self):
         """LOCUST_AUTH_CLIENT_SECRET sets config.auth_client_secret."""
-        with patch.dict(os.environ, {"LOCUST_AUTH_CLIENT_SECRET": "cfg_secret"}):
+        with patch.dict(
+            os.environ, {"LOCUST_AUTH_CLIENT_SECRET": "cfg_secret"}
+        ):
             config = LoadTestConfig.from_env()
             assert config.auth_client_secret == "cfg_secret"
 
@@ -419,7 +395,9 @@ class TestConfigAuthEnvVars:
 
     def test_auth_scopes_from_env(self):
         """LOCUST_AUTH_SCOPES sets config.auth_scopes."""
-        with patch.dict(os.environ, {"LOCUST_AUTH_SCOPES": "read write admin"}):
+        with patch.dict(
+            os.environ, {"LOCUST_AUTH_SCOPES": "read write admin"}
+        ):
             config = LoadTestConfig.from_env()
             assert config.auth_scopes == "read write admin"
 

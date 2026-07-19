@@ -145,18 +145,18 @@ class HTMLReportGenerator:
         exporter = JUnitXMLExporter()
         return exporter.export(data, output_path)
 
-    def _to_report_data(self) -> "ReportData":  # noqa: F821
+    def _to_report_data(self) -> ReportData:  # noqa: F821
         """Convert legacy HTMLReportGenerator state to ReportData."""
+        from datetime import datetime, timezone
+
         from locust_templates.report_data import (
             EndpointStats,
-            ExceptionRecord,
             FailureRecord,
             ReportData,
             ReportMetadata,
             ReportSummary,
             ThresholdConfig,
         )
-        from datetime import datetime, timezone
 
         endpoints: list[EndpointStats] = []
         for row in self.stats:
@@ -164,15 +164,15 @@ class HTMLReportGenerator:
             if name.lower() == "aggregated":
                 continue
 
-            def _sf(key: str) -> float:
+            def _sf(key: str, _row: dict = row) -> float:
                 try:
-                    return float(row.get(key, 0) or 0)
+                    return float(_row.get(key, 0) or 0)
                 except (ValueError, TypeError):
                     return 0.0
 
-            def _si(key: str) -> int:
+            def _si(key: str, _row: dict = row) -> int:
                 try:
-                    return int(float(row.get(key, 0) or 0))
+                    return int(float(_row.get(key, 0) or 0))
                 except (ValueError, TypeError):
                     return 0
 

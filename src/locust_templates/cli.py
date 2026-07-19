@@ -44,14 +44,13 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--format",
-        choices=["html", "json", "markdown", "junit"],
         default="html",
-        help="Output format (default: html)",
+        help="Output format: html, json, markdown, junit (default: html)",
     )
     parser.add_argument(
         "--output",
         default=None,
-        help="Output file path. Use '-' for stdout. Default: stdout for json/markdown, report.<fmt> for html/junit",
+        help="Output file path. Use '-' for stdout. Default: stdout for json/markdown",
     )
     parser.add_argument(
         "--p95-threshold",
@@ -111,7 +110,10 @@ def main(argv: list[str] | None = None) -> int:
     try:
         data = ReportData.from_csv(args.csv_prefix, thresholds=thresholds)
     except FileNotFoundError:
-        print(f"error: CSV file not found for prefix '{args.csv_prefix}'", file=sys.stderr)
+        print(
+            f"error: CSV file not found for prefix '{args.csv_prefix}'",
+            file=sys.stderr,
+        )
         return 1
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
