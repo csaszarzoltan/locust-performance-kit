@@ -1,0 +1,45 @@
+[project]
+name = "locust-performance-kit"
+version = "1.0.0"
+description = "Production-ready Locust load testing templates for enterprise performance testing"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Zoltan Csaszar" }]
+readme = "README.md"
+dependencies = [
+    "locust>=2.20.0",
+    "requests>=2.31.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-html>=3.2.0",
+    "ruff>=0.4.0",
+    "pyright[nodejs]>=1.1.360",
+    "pytest-mock>=3.12.0",
+    "responses>=0.25.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "UP", "B", "SIM", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "visual: Visual regression tests",
+    "slow: Slow running tests",
+]
