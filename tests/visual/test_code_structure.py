@@ -46,6 +46,24 @@ class TestTemplateCodeStructure:
         import_lines = [l for l in source.split("\n") if l.startswith("from ") or l.startswith("import ")]
         assert len(import_lines) == len(set(import_lines))
 
+    def test_shapes_no_duplicated_imports(self):
+        from locust_templates import shapes
+        source = Path(shapes.__file__).read_text()
+        import_lines = [l for l in source.split("\n") if l.startswith("from ") or l.startswith("import ")]
+        assert len(import_lines) == len(set(import_lines))
+
+    def test_config_no_duplicated_imports(self):
+        from locust_templates import config
+        source = Path(config.__file__).read_text()
+        import_lines = [l for l in source.split("\n") if l.startswith("from ") or l.startswith("import ")]
+        assert len(import_lines) == len(set(import_lines))
+
+    def test_runner_no_duplicated_imports(self):
+        from locust_templates import runner
+        source = Path(runner.__file__).read_text()
+        import_lines = [l for l in source.split("\n") if l.startswith("from ") or l.startswith("import ")]
+        assert len(import_lines) == len(set(import_lines))
+
 
 class TestNoDuplicatedLogic:
     """Verify each function appears only once across templates."""
@@ -128,5 +146,15 @@ class TestDocumentation:
     def test_readme_lists_all_templates(self):
         readme = Path(__file__).parent.parent.parent / "README.md"
         content = readme.read_text()
-        for template in ["api_load_test", "stress_test", "spike_test", "soak_test", "web_ui_test"]:
+        for template in ["api_load", "stress", "spike", "soak", "web_ui"]:
             assert template in content, f"README must mention {template}"
+
+    def test_readme_mentions_shapes(self):
+        readme = Path(__file__).parent.parent.parent / "README.md"
+        content = readme.read_text()
+        assert "shapes" in content.lower() or "StepLoadShape" in content, "README must mention shapes module"
+
+    def test_readme_mentions_config(self):
+        readme = Path(__file__).parent.parent.parent / "README.md"
+        content = readme.read_text()
+        assert "config" in content.lower() or "LoadTestConfig" in content, "README must mention config module"
