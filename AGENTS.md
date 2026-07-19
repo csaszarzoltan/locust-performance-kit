@@ -43,3 +43,9 @@ examples/ - Működő példák
 3. Implementáld a funkciót/javítást
 4. Futtasd a teszteket: `pytest`
 5. Csak zöld esetén commitolj
+
+## Kötelező befejező lépés minden fejlesztés után
+1. `git status` és `git diff` ellenőrzése.
+2. Ha vannak változtatások, commit és push a `main` branchre.
+3. Ha van releváns verzióemelés, frissítsd a tag-et is.
+
