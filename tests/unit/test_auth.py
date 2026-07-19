@@ -22,12 +22,12 @@ import pytest
 
 from locust_templates.auth import (
     AuthConfigError,
-    AuthError,
     AuthenticationError,
-    AuthRegistry,
     Authenticator,
-    OAuth2ClientCredentialsAuthenticator,
+    AuthError,
+    AuthRegistry,
     EnvTokenAuthenticator,
+    OAuth2ClientCredentialsAuthenticator,
     StaticTokenAuthenticator,
     create_authenticator,
     default_registry,
@@ -281,7 +281,11 @@ class TestOAuth2ClientCredentialsAuthenticator:
             mock_requests.post.assert_called_once()
             call_kwargs = mock_requests.post.call_args
             # Verify grant_type is in the POST data
-            data = call_kwargs[1].get("data") or call_kwargs[0][1] if len(call_kwargs[0]) > 1 else call_kwargs[1].get("data", {})
+            data = (
+                call_kwargs[1].get("data") or call_kwargs[0][1]
+                if len(call_kwargs[0]) > 1
+                else call_kwargs[1].get("data", {})
+            )
             assert "client_credentials" in str(data)
 
     def test_authenticate_caches_shared_token(self):
@@ -367,8 +371,9 @@ class TestOAuth2ClientCredentialsAuthenticator:
             "LOCUST_OAUTH_CLIENT_ID": "env_client_id",
             "LOCUST_OAUTH_CLIENT_SECRET": "env_client_secret",
         }
-        with patch.dict(os.environ, env, clear=False):
-            with patch("locust_templates.auth.requests") as mock_requests:
+        with patch.dict(os.environ, env, clear=False), patch(
+            "locust_templates.auth.requests"
+        ) as mock_requests:
                 mock_requests.post.return_value = self._mock_token_response(
                     "env_fallback_tok"
                 )
@@ -479,7 +484,9 @@ class TestCreateAuthenticator:
         assert isinstance(auth, EnvTokenAuthenticator)
 
     def test_create_static_provider(self):
-        """create_authenticator('static', token=...) returns StaticTokenAuthenticator."""
+        """create_authenticator('static', token=...) returns StaticTokenAuthenticator.
+
+        Returns a StaticTokenAuthenticator instance."""
         auth = create_authenticator("static", token="abc")
         assert isinstance(auth, StaticTokenAuthenticator)
 

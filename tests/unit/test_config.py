@@ -9,7 +9,6 @@ Tests verify:
 """
 
 import os
-import pytest
 from unittest.mock import patch
 
 from locust_templates.config import LoadTestConfig, load_config

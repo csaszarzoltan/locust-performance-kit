@@ -6,7 +6,6 @@ Tests verify:
 - Package version is accessible
 """
 
-import pytest
 
 
 class TestPackageExports:
@@ -45,7 +44,7 @@ class TestPackageExports:
         assert ThresholdResult is not None
 
     def test_shapes_exported(self):
-        from locust_templates import StepLoadShape, SpikeLoadShape
+        from locust_templates import SpikeLoadShape, StepLoadShape
         assert StepLoadShape is not None
         assert SpikeLoadShape is not None
 
@@ -75,7 +74,9 @@ class TestRunnerUtility:
 
     def test_build_command_with_users(self):
         from locust_templates.runner import build_locust_command
-        cmd = build_locust_command(script="examples/api_load_test.py", users=50, spawn_rate=5)
+        cmd = build_locust_command(
+            script="examples/api_load_test.py", users=50, spawn_rate=5
+        )
         assert "--users 50" in cmd
         assert "--spawn-rate 5" in cmd
 

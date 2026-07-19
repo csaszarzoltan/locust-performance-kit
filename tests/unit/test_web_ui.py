@@ -1,6 +1,5 @@
 """Unit tests for web UI test template."""
 
-import pytest
 from locust_templates.web_ui import WebUIUser
 
 

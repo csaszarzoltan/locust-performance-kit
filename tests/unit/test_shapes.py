@@ -7,8 +7,7 @@ Tests verify:
 - Edge cases (empty steps, single step, very long tests)
 """
 
-import pytest
-from locust_templates.shapes import StepLoadShape, SpikeLoadShape
+from locust_templates.shapes import SpikeLoadShape, StepLoadShape
 
 
 class TestStepLoadShape:

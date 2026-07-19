@@ -1,11 +1,8 @@
 """Integration tests for template modules."""
 
 import importlib
-import inspect
 import sys
 from pathlib import Path
-
-import pytest
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -49,30 +46,35 @@ class TestTemplateStructure:
 
     def test_all_users_inherit_from_http_user(self):
         from locust import HttpUser
+
         from locust_templates.api_load import APIUser
-        from locust_templates.stress import StressUser
-        from locust_templates.spike import SpikeUser
         from locust_templates.soak import SoakUser
+        from locust_templates.spike import SpikeUser
+        from locust_templates.stress import StressUser
         from locust_templates.web_ui import WebUIUser
 
         for user_cls in [APIUser, StressUser, SpikeUser, SoakUser, WebUIUser]:
-            assert issubclass(user_cls, HttpUser), f"{user_cls.__name__} must inherit from HttpUser"
+            assert issubclass(user_cls, HttpUser), (
+                f"{user_cls.__name__} must inherit from HttpUser"
+            )
 
     def test_all_users_have_wait_time(self):
         from locust_templates.api_load import APIUser
-        from locust_templates.stress import StressUser
-        from locust_templates.spike import SpikeUser
         from locust_templates.soak import SoakUser
+        from locust_templates.spike import SpikeUser
+        from locust_templates.stress import StressUser
         from locust_templates.web_ui import WebUIUser
 
         for user_cls in [APIUser, StressUser, SpikeUser, SoakUser, WebUIUser]:
-            assert hasattr(user_cls, "wait_time"), f"{user_cls.__name__} must have wait_time"
+            assert hasattr(user_cls, "wait_time"), (
+                f"{user_cls.__name__} must have wait_time"
+            )
 
     def test_all_users_have_at_least_one_task(self):
         from locust_templates.api_load import APIUser
-        from locust_templates.stress import StressUser
-        from locust_templates.spike import SpikeUser
         from locust_templates.soak import SoakUser
+        from locust_templates.spike import SpikeUser
+        from locust_templates.stress import StressUser
         from locust_templates.web_ui import WebUIUser
 
         for user_cls in [APIUser, StressUser, SpikeUser, SoakUser, WebUIUser]:
@@ -98,6 +100,7 @@ class TestMetricsIntegration:
 
     def test_metrics_thread_safety(self):
         import threading
+
         from locust_templates.metrics import MetricsCollector
 
         collector = MetricsCollector()

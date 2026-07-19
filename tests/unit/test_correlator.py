@@ -16,8 +16,6 @@ import json
 from pathlib import Path
 from unittest.mock import Mock
 
-import pytest
-
 from locust_templates.correlator import (
     CorrelatedEvent,
     CorrelationSummary,
@@ -488,7 +486,8 @@ class TestRequestCorrelator:
     # ──────────────────────────────────────────────────────────
 
     def test_dataclasses_exist(self):
-        """CorrelatedEvent, FailureChain, CorrelationSummary are importable dataclasses."""
+        """CorrelatedEvent, FailureChain, CorrelationSummary are importable
+        dataclasses."""
         from dataclasses import is_dataclass
         assert is_dataclass(CorrelatedEvent)
         assert is_dataclass(FailureChain)

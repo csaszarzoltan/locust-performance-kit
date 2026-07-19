@@ -1,6 +1,5 @@
 """Unit tests for API load test template."""
 
-import pytest
 from locust_templates.api_load import APIUser, on_request, on_user_error
 
 

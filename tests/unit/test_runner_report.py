@@ -11,7 +11,6 @@ import pytest
 
 from locust_templates.runner import build_locust_command
 
-
 # ──────────────────────────────────────────────────────────────
 # Backward compatibility tests
 # ──────────────────────────────────────────────────────────────

@@ -403,7 +403,9 @@ class TestMarkdownExporter:
         assert "Threshold" in content
 
     @pytest.mark.unit
-    def test_md_export_threshold_pass_emoji(self, report_data_with_thresholds, tmp_path):
+    def test_md_export_threshold_pass_emoji(
+        self, report_data_with_thresholds, tmp_path
+    ):
         """✅ PASS should appear in threshold table for passing endpoints."""
         output = tmp_path / "report.md"
         MarkdownExporter().export(report_data_with_thresholds, str(output))
@@ -473,7 +475,7 @@ class TestMarkdownExporter:
         content = output.read_text(encoding="utf-8")
         # Aggregated should not be a table row
         lines = content.split("\n")
-        table_lines = [l for l in lines if "|" in l and "Aggregated" in l]
+        table_lines = [line for line in lines if "|" in line and "Aggregated" in line]
         assert len(table_lines) == 0
 
     @pytest.mark.unit
@@ -587,7 +589,9 @@ class TestJUnitXMLExporter:
         assert len(failures) > 0
 
     @pytest.mark.unit
-    def test_junit_export_system_out_on_pass(self, report_data_with_thresholds, tmp_path):
+    def test_junit_export_system_out_on_pass(
+        self, report_data_with_thresholds, tmp_path
+    ):
         """<system-out> with metrics should appear for passing testcases."""
         output = tmp_path / "junit.xml"
         JUnitXMLExporter().export(report_data_with_thresholds, str(output))

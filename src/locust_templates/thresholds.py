@@ -51,7 +51,8 @@ class ThresholdChecker:
 
         if error_rate > self.error_rate_threshold:
             failures.append(
-                f"Error rate {error_rate:.2%} exceeds threshold {self.error_rate_threshold:.2%}"
+                f"Error rate {error_rate:.2%} exceeds threshold "
+                f"{self.error_rate_threshold:.2%}"
             )
 
         return ThresholdResult(

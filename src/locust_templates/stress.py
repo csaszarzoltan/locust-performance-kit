@@ -7,9 +7,8 @@ Usage:
     locust -f src/locust_templates/stress.py --users 500 --spawn-rate 50 --run-time 10m
 """
 
-import time
 
-from locust import HttpUser, between, events, task
+from locust import HttpUser, between, task
 
 
 class StressUser(HttpUser):

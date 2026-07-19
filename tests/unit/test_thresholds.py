@@ -1,6 +1,5 @@
 """Unit tests for threshold checking."""
 
-import pytest
 from locust_templates.thresholds import ThresholdChecker
 
 

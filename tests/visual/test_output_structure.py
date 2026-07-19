@@ -7,8 +7,6 @@ and verify the CI pipeline produces correct artifacts.
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 
@@ -41,7 +39,7 @@ class TestTemplateOutputStructure:
         summary = collector.get_summary()
 
         # Each endpoint should have count, avg, min, max, failures
-        for endpoint, metrics in summary.items():
+        for _endpoint, metrics in summary.items():
             assert "count" in metrics
             assert "avg" in metrics
             assert "min" in metrics
@@ -80,4 +78,6 @@ class TestTemplateFileContent:
             if py_file.name == "__init__.py":
                 continue
             content = py_file.read_text()
-            assert '"""' in content or "'''" in content, f"{py_file.name} missing docstring"
+            assert '"""' in content or "'''" in content, (
+                f"{py_file.name} missing docstring"
+            )

@@ -178,7 +178,9 @@ class TestBackwardCompat:
         """HTMLReportGenerator(stats=..., failures=..., thresholds=...) works."""
         gen = HTMLReportGenerator(
             stats=[{"Name": "/api/items", "Request Count": 100}],
-            failures=[{"Method": "GET", "Name": "/api/items", "Type": "ERR", "Error": "oops"}],
+            failures=[
+            {"Method": "GET", "Name": "/api/items", "Type": "ERR", "Error": "oops"}
+        ],
             thresholds={"p95": 500.0, "p99": 1000.0},
         )
         assert gen is not None

@@ -1,6 +1,5 @@
 """Unit tests for spike test template."""
 
-import pytest
 from locust_templates.spike import SpikeUser
 
 

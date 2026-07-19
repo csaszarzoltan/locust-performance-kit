@@ -96,9 +96,12 @@ class SpikeLoadShape(LoadTestShape):
             return self.spike_users, self.spike_users
         else:
             # Recovery phase - gradually decrease
-            recovery_elapsed = cycle_position - self.baseline_duration - self.spike_duration
+            recovery_elapsed = (
+                cycle_position - self.baseline_duration - self.spike_duration
+            )
             recovery_progress = recovery_elapsed / self.recovery_duration
             current_users = int(
-                self.spike_users - (self.spike_users - self.baseline_users) * recovery_progress
+                self.spike_users
+                - (self.spike_users - self.baseline_users) * recovery_progress
             )
             return max(current_users, self.baseline_users), self.baseline_users

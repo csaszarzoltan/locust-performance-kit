@@ -8,10 +8,7 @@ Verifies the example file:
 """
 
 import ast
-import sys
 from pathlib import Path
-
-import pytest
 
 EXAMPLES_DIR = Path(__file__).parent.parent.parent / "examples"
 EXAMPLE_FILE = EXAMPLES_DIR / "api_load_test.py"
@@ -21,7 +18,9 @@ class TestExampleFileExists:
     """Verify the example file exists and is well-formed."""
 
     def test_example_file_exists(self):
-        assert EXAMPLE_FILE.exists(), "examples/api_load_test.py must exist (CI depends on it)"
+        assert EXAMPLE_FILE.exists(), (
+            "examples/api_load_test.py must exist (CI depends on it)"
+        )
 
     def test_example_file_is_nonempty(self):
         content = EXAMPLE_FILE.read_text()
@@ -56,7 +55,9 @@ class TestExampleFileStructure:
     def test_has_if_name_main(self):
         """Ensure the file can be used as both module and script."""
         content = EXAMPLE_FILE.read_text()
-        assert '__name__' in content, "Should have __name__ guard or at minimum be importable"
+        assert '__name__' in content, (
+            "Should have __name__ guard or at minimum be importable"
+        )
 
 
 class TestExampleImportsTemplate:

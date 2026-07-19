@@ -1,7 +1,7 @@
 """Unit tests for metrics collection."""
 
-import time
 import pytest
+
 from locust_templates.metrics import MetricsCollector
 
 

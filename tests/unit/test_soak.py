@@ -1,6 +1,5 @@
 """Unit tests for soak test template."""
 
-import pytest
 from locust_templates.soak import SoakUser
 
 

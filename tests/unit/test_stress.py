@@ -1,6 +1,5 @@
 """Unit tests for stress test template."""
 
-import pytest
 from locust_templates.stress import StressUser
 
 

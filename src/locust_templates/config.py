@@ -65,10 +65,16 @@ class LoadTestConfig:
             users=int(os.environ.get("LOCUST_USERS", str(cls.users))),
             spawn_rate=int(os.environ.get("LOCUST_SPAWN_RATE", str(cls.spawn_rate))),
             run_time=os.environ.get("LOCUST_RUN_TIME", cls.run_time),
-            p95_threshold=float(os.environ.get("LOCUST_P95_THRESHOLD", str(cls.p95_threshold))),
-            p99_threshold=float(os.environ.get("LOCUST_P99_THRESHOLD", str(cls.p99_threshold))),
+            p95_threshold=float(
+                os.environ.get("LOCUST_P95_THRESHOLD", str(cls.p95_threshold))
+            ),
+            p99_threshold=float(
+                os.environ.get("LOCUST_P99_THRESHOLD", str(cls.p99_threshold))
+            ),
             error_rate_threshold=float(
-                os.environ.get("LOCUST_ERROR_RATE_THRESHOLD", str(cls.error_rate_threshold))
+                os.environ.get(
+                    "LOCUST_ERROR_RATE_THRESHOLD", str(cls.error_rate_threshold)
+                )
             ),
             auth_provider=os.environ.get("LOCUST_AUTH_PROVIDER", cls.auth_provider),
             auth_client_id=os.environ.get("LOCUST_AUTH_CLIENT_ID", cls.auth_client_id),

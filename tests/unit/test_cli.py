@@ -7,8 +7,6 @@ reports from Locust CSV output. They will FAIL until cli.py is implemented.
 from __future__ import annotations
 
 import json
-import subprocess
-import sys
 from pathlib import Path
 
 import pytest
