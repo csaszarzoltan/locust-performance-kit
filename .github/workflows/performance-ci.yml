@@ -1,0 +1,51 @@
+name: Performance Testing CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run nightly performance tests
+    - cron: '0 2 * * *'
+
+jobs:
+  performance-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Run Locust load test
+        run: |
+          locust -f examples/api_load_test.py \
+            --headless \
+            --users 50 \
+            --spawn-rate 5 \
+            --run-time 2m \
+            --html report.html \
+            --csv results
+            
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-report
+          path: |
+            report.html
+            results_*.csv
+          retention-days: 30
+          
+      - name: Check performance thresholds
+        run: |
+          # Add custom threshold checks here
+          echo "Checking performance metrics..."
+          # Example: fail if p95 > 500ms
