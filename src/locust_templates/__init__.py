@@ -8,6 +8,7 @@ Quick start:
     from locust_templates import APIUser, MetricsCollector, ThresholdChecker
 """
 
+from locust_templates.alerts import Alert, AlertEngine, AlertRule
 from locust_templates.api_load import APIUser
 from locust_templates.auth import (
     AuthConfigError,
@@ -29,6 +30,7 @@ from locust_templates.correlator import (
     FailureChain,
     RequestCorrelator,
 )
+from locust_templates.live_dashboard import LiveDashboard, TimeSeriesPoint
 from locust_templates.metrics import MetricsCollector
 from locust_templates.notifications import Notifier, SlackNotifier, TeamsNotifier
 from locust_templates.report_data import (
@@ -51,6 +53,9 @@ from locust_templates.web_ui import WebUIUser
 
 __all__ = [
     "APIUser",
+    "Alert",
+    "AlertEngine",
+    "AlertRule",
     "AuthConfigError",
     "AuthError",
     "AuthRegistry",
@@ -64,6 +69,7 @@ __all__ = [
     "FailureChain",
     "FailureRecord",
     "HTMLReportGenerator",
+    "LiveDashboard",
     "LoadTestConfig",
     "MetricsCollector",
     "Notifier",
@@ -84,6 +90,7 @@ __all__ = [
     "ThresholdChecker",
     "ThresholdConfig",
     "ThresholdResult",
+    "TimeSeriesPoint",
     "WebUIUser",
     "build_locust_command",
     "create_authenticator",

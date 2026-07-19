@@ -1,8 +1,8 @@
 # Locust Performance Kit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 398](https://img.shields.io/badge/tests-398%20passed-brightgreen.svg)]()
-[![Version: 1.2.0](https://img.shields.io/badge/version-1.2.0-blue.svg)]()
+[![Tests: 496](https://img.shields.io/badge/tests-496%20passed-brightgreen.svg)]()
+[![Version: 1.3.0](https://img.shields.io/badge/version-1.3.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 Production-ready Locust load testing templates, CI/CD pipelines, and monitoring integrations for enterprise-grade performance testing.
@@ -31,6 +31,19 @@ Built by a performance engineer with 6+ years at a major Swiss bank. These templ
   - Cascade detection: failed request → downstream failures from same user within time window
   - CSV/JSON export of correlated events and failure chains
   - See [Request Correlation Guide](docs/request-correlation.md) for details
+
+### Live Dashboard & Alerts (v1.3.0+)
+- `src/locust_templates/live_dashboard.py` — Real-time live metrics dashboard
+  - `LiveDashboard` collects time-series snapshots (avg/p95 RT, throughput, error rate, users)
+  - Self-contained HTML with embedded Chart.js for live response-time and throughput charts
+  - Auto-refresh (configurable interval, default 5s)
+  - Rolling window of max_points (default 300) to limit memory
+  - `record_from_collector()` to snapshot from `MetricsCollector`
+- `src/locust_templates/alerts.py` — Configurable threshold alerts
+  - `AlertRule` with metric, operator (>, >=, <, <=, ==), threshold, severity
+  - `AlertEngine` evaluates rules against live metrics, supports dedup mode
+  - `AlertEngine.from_config()` factory for config-driven rule setup
+  - See [Live Dashboard & Alerts Guide](docs/live-dashboard.md) for details
 
 ### Report Export (v1.2.0+)
 
@@ -342,7 +355,7 @@ pytest tests/visual/ -v
 ruff check src/ tests/
 ```
 
-All 398 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 110 for cross-platform report export).
+All 496 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 110 for cross-platform report export + 98 for v1.3.0 live dashboard/alerts).
 
 ## Tech Stack
 
@@ -379,12 +392,14 @@ throughput: 1000 RPS
 src/locust_templates/
     __init__.py            — package exports
     api_load.py            — REST API load testing base
+    alerts.py              — configurable threshold alerts (v1.3.0)
     auth.py                — pluggable authentication providers (v1.2.0)
     baseline.py            — regression baseline comparison (v1.1.0)
     cli.py                 — locust-report CLI entry point (v1.2.0)
     config.py              — environment-based configuration
     correlator.py          — request correlation & cascade detection (v1.2.0)
     exporters.py           — HTML/JSON/Markdown/JUnit exporters (v1.2.0)
+    live_dashboard.py      — real-time live metrics dashboard (v1.3.0)
     metrics.py             — thread-safe metrics collection
     notifications.py       — Slack/Teams webhook notifications (v1.1.0)
     report_data.py         — ReportData model + from_csv (v1.2.0)
@@ -415,6 +430,7 @@ examples/                  — runnable example scripts
 - [Report Export Guide](docs/report-export.md)
 - [Baseline Comparison Guide](docs/baseline-comparison.md)
 - [Request Correlation Guide](docs/request-correlation.md)
+- [Live Dashboard & Alerts Guide](docs/live-dashboard.md)
 - [Notifications Guide](docs/notifications.md)
 
 ## Changelog

@@ -14,8 +14,9 @@ Usage:
     print(config.users)  # 100
 """
 
+import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
 
@@ -44,6 +45,16 @@ class LoadTestConfig:
     auth_client_secret: str = ""
     auth_token_url: str = ""
     auth_scopes: str = ""
+
+    # Live Dashboard (v1.3.0)
+    dashboard_enabled: bool = True
+    dashboard_refresh_interval: int = 5
+    dashboard_max_points: int = 300
+    dashboard_output: str = ""
+
+    # Threshold Alerts (v1.3.0)
+    alerts_enabled: bool = True
+    alert_rules: list = field(default_factory=list)
 
     @classmethod
     def from_env(cls) -> "LoadTestConfig":
@@ -85,6 +96,32 @@ class LoadTestConfig:
                 "LOCUST_AUTH_TOKEN_URL", cls.auth_token_url
             ),
             auth_scopes=os.environ.get("LOCUST_AUTH_SCOPES", cls.auth_scopes),
+            dashboard_enabled=os.environ.get(
+                "LOCUST_DASHBOARD_ENABLED", "true"
+            ).lower()
+            in ("true", "1", "yes"),
+            dashboard_refresh_interval=int(
+                os.environ.get(
+                    "LOCUST_DASHBOARD_REFRESH",
+                    str(cls.dashboard_refresh_interval),
+                )
+            ),
+            dashboard_max_points=int(
+                os.environ.get(
+                    "LOCUST_DASHBOARD_MAX_POINTS",
+                    str(cls.dashboard_max_points),
+                )
+            ),
+            dashboard_output=os.environ.get(
+                "LOCUST_DASHBOARD_OUTPUT", cls.dashboard_output
+            ),
+            alerts_enabled=os.environ.get(
+                "LOCUST_ALERTS_ENABLED", "true"
+            ).lower()
+            in ("true", "1", "yes"),
+            alert_rules=_parse_alert_rules(
+                os.environ.get("LOCUST_ALERT_RULES", "")
+            ),
         )
 
 
@@ -101,3 +138,23 @@ def load_config(env_file: str | None = None) -> LoadTestConfig:
         load_dotenv(env_file, override=False)
 
     return LoadTestConfig.from_env()
+
+
+def _parse_alert_rules(raw: str) -> list:
+    """Parse alert rules from a JSON string env var.
+
+    Args:
+        raw: JSON string (e.g. '[{"name": "p95", ...}]') or empty string.
+
+    Returns:
+        List of rule dicts, or empty list if parsing fails.
+    """
+    if not raw or not raw.strip():
+        return []
+    try:
+        rules = json.loads(raw)
+        if isinstance(rules, list):
+            return rules
+        return []
+    except (json.JSONDecodeError, TypeError):
+        return []

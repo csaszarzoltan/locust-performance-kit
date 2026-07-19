@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-07-19
+
+### Added
+
+- **Real-time live metrics dashboard** (`src/locust_templates/live_dashboard.py`):
+  - `LiveDashboard` collects time-series snapshots of avg/p95 response time, throughput, error rate, and active users
+  - `TimeSeriesPoint` dataclass for each snapshot
+  - Self-contained HTML rendering with embedded Chart.js for live response-time and throughput charts
+  - Auto-refresh meta tag (configurable interval, default 5s)
+  - Rolling window of max_points (default 300) to limit memory usage
+  - `record_from_collector()` method to snapshot from `MetricsCollector`
+  - `render()` and `render_to_file()` for HTML output
+  - Alerts panel integration — pass fired `Alert` objects to display in the dashboard
+- **Configurable threshold alerts** (`src/locust_templates/alerts.py`):
+  - `AlertRule` dataclass with metric, operator (>, >=, <, <=, ==), threshold, and severity
+  - `Alert` dataclass with fired alert details (value, timestamp, message)
+  - `AlertEngine` evaluates rules against live metrics, supports dedup mode
+  - `AlertEngine.from_config()` factory for creating from config dicts
+  - `AlertEngine.check()` returns newly fired alerts; `get_alerts()` returns all history
+- **Failure hotspots in reports** (`report_data.py`, `exporters.py`):
+  - `ReportData.get_failure_hotspots()` returns endpoints sorted by failure rate (descending)
+  - HTMLExporter renders a "Failure Hotspots" table section
+  - MarkdownExporter renders a "## Failure Hotspots" table section
+  - Only endpoints with > 0 failures are included
+- **Dashboard and alerts configuration** (`config.py`, `runner.py`):
+  - New config fields: `dashboard_enabled`, `dashboard_refresh_interval`, `dashboard_max_points`, `dashboard_output`
+  - New config fields: `alerts_enabled`, `alert_rules` (parsed from JSON env var)
+  - Environment variables: `LOCUST_DASHBOARD_ENABLED`, `LOCUST_DASHBOARD_REFRESH`, `LOCUST_DASHBOARD_MAX_POINTS`, `LOCUST_DASHBOARD_OUTPUT`
+  - Environment variables: `LOCUST_ALERTS_ENABLED`, `LOCUST_ALERT_RULES` (JSON array of rule dicts)
+  - `runner.build_dashboard_command()` helper for CI/CD dashboard generation
+  - New exports in `__init__.py`: `LiveDashboard`, `TimeSeriesPoint`, `Alert`, `AlertEngine`, `AlertRule`
+
+### Changed
+
+- Version bumped from 1.2.0 to 1.3.0
+- Test suite expanded from 398 to 496 passing tests (98 new tests)
+
 ## [1.2.0] - 2026-07-19
 
 ### Added

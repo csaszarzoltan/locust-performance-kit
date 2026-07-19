@@ -137,4 +137,36 @@ def generate_report(
     return exporter.export(data, output_path)
 
 
-__all__ = ["build_locust_command", "generate_report"]
+# ──────────────────────────────────────────────────────────────
+# Live dashboard helper
+# ──────────────────────────────────────────────────────────────
+
+
+def build_dashboard_command(
+    csv_prefix: str,
+    output: str,
+    *,
+    fmt: str = "html",
+    refresh: int = 5,
+    max_points: int = 300,
+) -> str:
+    """Build a locust-report command for generating a live dashboard.
+
+    Args:
+        csv_prefix: Prefix for Locust CSV files.
+        output: Output path for the dashboard HTML.
+        fmt: Output format (default "html").
+        refresh: Auto-refresh interval in seconds (default 5).
+        max_points: Maximum time-series points to retain (default 300).
+
+    Returns:
+        Complete command string for dashboard generation.
+    """
+    parts = ["locust-report", csv_prefix, "--format", fmt, "--output", output]
+    parts.extend(["--dashboard"])
+    parts.extend(["--refresh", str(refresh)])
+    parts.extend(["--max-points", str(max_points)])
+    return " ".join(parts)
+
+
+__all__ = ["build_dashboard_command", "build_locust_command", "generate_report"]

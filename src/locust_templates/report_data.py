@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -116,6 +116,37 @@ class ReportData:
     summary: ReportSummary
     metadata: ReportMetadata
     thresholds: ThresholdConfig | None = None
+
+    # ── failure hotspots ──────────────────────────────────────
+
+    def get_failure_hotspots(self) -> list[dict[str, Any]]:
+        """Return endpoints sorted by failure rate (descending).
+
+        Only endpoints with at least one failure are included.
+
+        Returns:
+            List of dicts with keys: name, failure_count, request_count,
+            failure_rate. Sorted by failure_rate descending.
+        """
+        hotspots: list[dict[str, Any]] = []
+        for ep in self.endpoints:
+            if ep.failure_count == 0:
+                continue
+            rate = (
+                ep.failure_count / ep.request_count
+                if ep.request_count > 0
+                else 0.0
+            )
+            hotspots.append(
+                {
+                    "name": ep.name,
+                    "failure_count": ep.failure_count,
+                    "request_count": ep.request_count,
+                    "failure_rate": rate,
+                }
+            )
+        hotspots.sort(key=lambda h: h["failure_rate"], reverse=True)
+        return hotspots
 
     # ── factory ──────────────────────────────────────────────
 

@@ -166,7 +166,7 @@ class TestFromCsvParsing:
         data = ReportData.from_csv(str(FIXTURES_DIR / "sample"))
         assert data.metadata is not None
         assert data.metadata.tool == "locust-performance-kit"
-        assert data.metadata.version == "1.2.0"
+        assert data.metadata.version == "1.3.0"
         assert data.metadata.csv_prefix != ""
 
     @pytest.mark.unit
