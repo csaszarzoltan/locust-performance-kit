@@ -42,10 +42,18 @@ examples/ - Működő példák
 2. Írj teszteket a következő funkcióhoz/ javításhoz
 3. Implementáld a funkciót/javítást
 4. Futtasd a teszteket: `pytest`
-5. Csak zöld esetén commitolj
+5. Ha a tesztek zöldek, a fejlesztő commitolja a kódot
+6. A **release-manager** felelős a `main` branchre történő pusholásért a kanban folyamatban, a tesztek sikeres lefutása után
+7. A push sikeres után a release-manager frissíti a verziót és a change log-ot, ha szükséges
 
-## Kötelező befejező lépés minden fejlesztés után
+## Szerepkörök a folyamatban:
+- **Fejlesztő**: kód, tesztek, commit
+- **Tester/Pre-tester**: tesztek lefuttatása, validálás
+- **Release manager**: push, release notes, verziókezelés
+
+## Kötelező befejező lépés a release manager részéről
 1. `git status` és `git diff` ellenőrzése.
-2. Ha vannak változtatások, commit és push a `main` branchre.
-3. Ha van releváns verzióemelés, frissítsd a tag-et is.
+2. Ha a tesztek zöldek, `git push origin main` a `main` branchre.
+3. Ha van verzióemelés, frissítsd a tag-et is.
+4. Frissítsd a `CHANGELOG.md`-t és a dokumentációt.
 
