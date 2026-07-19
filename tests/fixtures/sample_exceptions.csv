@@ -1,0 +1,3 @@
+"Context","Exception","Traceback"
+"Exception during request","ConnectionError","Traceback (most recent call last):  File ""locustTemplates.py"", line 120, in on_request  raise ConnectionError(""Connection refused"")"
+"Exception during request","TimeoutError","Traceback (most recent call last):  File ""locustTemplates.py"", line 145, in on_request  raise TimeoutError(""Request timed out after 30s"")"
