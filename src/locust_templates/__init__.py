@@ -9,8 +9,11 @@ Quick start:
 """
 
 from locust_templates.api_load import APIUser
+from locust_templates.baseline import PerformanceBaseline
 from locust_templates.config import LoadTestConfig, load_config
 from locust_templates.metrics import MetricsCollector
+from locust_templates.notifications import Notifier, SlackNotifier, TeamsNotifier
+from locust_templates.report_generator import HTMLReportGenerator
 from locust_templates.shapes import SpikeLoadShape, StepLoadShape
 from locust_templates.soak import SoakUser
 from locust_templates.spike import SpikeUser
@@ -20,13 +23,18 @@ from locust_templates.web_ui import WebUIUser
 
 __all__ = [
     "APIUser",
+    "HTMLReportGenerator",
     "LoadTestConfig",
     "MetricsCollector",
+    "Notifier",
+    "PerformanceBaseline",
+    "SlackNotifier",
     "SpikeLoadShape",
     "SpikeUser",
     "SoakUser",
     "StepLoadShape",
     "StressUser",
+    "TeamsNotifier",
     "ThresholdChecker",
     "ThresholdResult",
     "WebUIUser",

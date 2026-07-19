@@ -1,0 +1,4 @@
+"Method","Name","Type","Error"
+"POST","/api/orders","HTTPError","500 Internal Server Error: Timeout"
+"GET","/api/items","HTTPError","503 Service Unavailable: Rate limited"
+"GET","/api/users","ConnectionError","Connection refused"
