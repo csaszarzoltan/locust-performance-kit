@@ -19,6 +19,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from locust_templates.correlator import CorrelationSummary
+
 
 class BaselineNotFoundError(Exception):
     """Raised when a named baseline cannot be found."""
@@ -108,6 +110,7 @@ class PerformanceBaseline:
         csv_prefix: str,
         name: str,
         path: str | Path | None = None,
+        correlation_summary: CorrelationSummary | None = None,
     ) -> Path:
         """Save current run metrics as a named baseline."""
         target_dir = Path(path) if path else self.baseline_dir
@@ -137,6 +140,14 @@ class PerformanceBaseline:
             "created_at": datetime.now(timezone.utc).isoformat(),
             "endpoints": endpoints,
         }
+        if correlation_summary:
+            total = correlation_summary.total_failures
+            cascade = correlation_summary.cascade_failures
+            baseline_data["cascade_rate"] = (
+                cascade / total if total > 0 else 0.0
+            )
+            baseline_data["cascade_failures"] = cascade
+            baseline_data["root_failures"] = correlation_summary.root_failures
         file_path = target_dir / f"{name}.json"
         with open(file_path, "w") as f:
             json.dump(baseline_data, f, indent=2)

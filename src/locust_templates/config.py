@@ -15,7 +15,7 @@ Usage:
 """
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from dotenv import load_dotenv
 
@@ -37,6 +37,13 @@ class LoadTestConfig:
     p95_threshold: float = 500.0
     p99_threshold: float = 1000.0
     error_rate_threshold: float = 0.01
+
+    # Auth
+    auth_provider: str = "static"
+    auth_client_id: str = ""
+    auth_client_secret: str = ""
+    auth_token_url: str = ""
+    auth_scopes: str = ""
 
     @classmethod
     def from_env(cls) -> "LoadTestConfig":
@@ -63,6 +70,15 @@ class LoadTestConfig:
             error_rate_threshold=float(
                 os.environ.get("LOCUST_ERROR_RATE_THRESHOLD", str(cls.error_rate_threshold))
             ),
+            auth_provider=os.environ.get("LOCUST_AUTH_PROVIDER", cls.auth_provider),
+            auth_client_id=os.environ.get("LOCUST_AUTH_CLIENT_ID", cls.auth_client_id),
+            auth_client_secret=os.environ.get(
+                "LOCUST_AUTH_CLIENT_SECRET", cls.auth_client_secret
+            ),
+            auth_token_url=os.environ.get(
+                "LOCUST_AUTH_TOKEN_URL", cls.auth_token_url
+            ),
+            auth_scopes=os.environ.get("LOCUST_AUTH_SCOPES", cls.auth_scopes),
         )
 
 

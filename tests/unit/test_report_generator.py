@@ -144,3 +144,96 @@ class TestGenerate:
             or "green" in lowered
             or "red" in lowered
         )
+
+
+# ──────────────────────────────────────────────────────────────
+# Backward compatibility tests (v1.2.0 shim)
+# ──────────────────────────────────────────────────────────────
+
+
+class TestBackwardCompat:
+    """Verify HTMLReportGenerator backward compatibility after v1.2.0 refactor."""
+
+    @pytest.mark.unit
+    def test_backward_compat_from_csv_signature(self):
+        """from_csv(prefix, thresholds=...) should work unchanged."""
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        assert gen is not None
+        gen2 = HTMLReportGenerator.from_csv(
+            str(FIXTURES_DIR / "sample"),
+            thresholds={"p95": 500.0, "p99": 1000.0},
+        )
+        assert gen2 is not None
+
+    @pytest.mark.unit
+    def test_backward_compat_generate_signature(self, tmp_path):
+        """generate('report.html') should return str path."""
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        output = tmp_path / "report.html"
+        result = gen.generate(str(output))
+        assert isinstance(result, str)
+
+    @pytest.mark.unit
+    def test_backward_compat_init_stats_failures_thresholds(self):
+        """HTMLReportGenerator(stats=..., failures=..., thresholds=...) works."""
+        gen = HTMLReportGenerator(
+            stats=[{"Name": "/api/items", "Request Count": 100}],
+            failures=[{"Method": "GET", "Name": "/api/items", "Type": "ERR", "Error": "oops"}],
+            thresholds={"p95": 500.0, "p99": 1000.0},
+        )
+        assert gen is not None
+
+    @pytest.mark.unit
+    def test_backward_compat_generate_still_produces_html(self, tmp_path):
+        """generate() should still produce valid HTML after refactor."""
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        output = tmp_path / "report.html"
+        gen.generate(str(output))
+        content = output.read_text(encoding="utf-8")
+        assert "<html" in content.lower()
+        assert "</html>" in content.lower()
+
+
+# ──────────────────────────────────────────────────────────────
+# New convenience methods (v1.2.0)
+# ──────────────────────────────────────────────────────────────
+
+
+class TestNewMethods:
+    """Tests for new to_json(), to_markdown(), to_junit() methods (v1.2.0)."""
+
+    @pytest.mark.unit
+    def test_new_to_json_method(self, tmp_path):
+        """to_json() should write valid JSON file."""
+        import json
+
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        output = tmp_path / "report.json"
+        result = gen.to_json(str(output))
+        assert Path(result).exists()
+        content = output.read_text(encoding="utf-8")
+        parsed = json.loads(content)
+        assert "metadata" in parsed
+
+    @pytest.mark.unit
+    def test_new_to_markdown_method(self, tmp_path):
+        """to_markdown() should write valid Markdown file."""
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        output = tmp_path / "report.md"
+        result = gen.to_markdown(str(output))
+        assert Path(result).exists()
+        content = output.read_text(encoding="utf-8")
+        assert "# Locust Performance Report" in content
+
+    @pytest.mark.unit
+    def test_new_to_junit_method(self, tmp_path):
+        """to_junit() should write valid JUnit XML file."""
+        import xml.etree.ElementTree as ET
+
+        gen = HTMLReportGenerator.from_csv(str(FIXTURES_DIR / "sample"))
+        output = tmp_path / "junit.xml"
+        result = gen.to_junit(str(output))
+        assert Path(result).exists()
+        content = output.read_text(encoding="utf-8")
+        root = ET.fromstring(content)
+        assert root.tag == "testsuites"

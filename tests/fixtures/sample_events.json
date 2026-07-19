@@ -1,0 +1,37 @@
+{
+  "events": [
+    {
+      "request_type": "POST",
+      "name": "POST /login",
+      "response_time": 250.0,
+      "response_length": 512,
+      "status_code": 200,
+      "exception": null,
+      "start_time": 1000.0,
+      "context": {"user_id": "user-1", "correlation_id": "token-abc"},
+      "url": "http://localhost/login"
+    },
+    {
+      "request_type": "GET",
+      "name": "GET /profile",
+      "response_time": 150.0,
+      "response_length": 1024,
+      "status_code": 500,
+      "exception": "InternalServerError",
+      "start_time": 1000.5,
+      "context": {"user_id": "user-1", "correlation_id": "token-abc"},
+      "url": "http://localhost/profile"
+    },
+    {
+      "request_type": "GET",
+      "name": "GET /orders",
+      "response_time": 3000.0,
+      "response_length": 0,
+      "status_code": 0,
+      "exception": "ConnectionError",
+      "start_time": 1001.0,
+      "context": {"user_id": "user-1", "correlation_id": "token-abc"},
+      "url": "http://localhost/orders"
+    }
+  ]
+}

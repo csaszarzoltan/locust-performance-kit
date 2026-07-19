@@ -1,6 +1,6 @@
 [project]
 name = "locust-performance-kit"
-version = "1.1.0"
+version = "1.2.0"
 description = "Production-ready Locust load testing templates for enterprise performance testing"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -11,6 +11,9 @@ dependencies = [
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
 ]
+
+[project.scripts]
+locust-report = "locust_templates.cli:main"
 
 [project.optional-dependencies]
 dev = [
