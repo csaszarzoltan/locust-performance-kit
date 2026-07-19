@@ -35,6 +35,38 @@ locust -f examples/api_load_test.py \
     --host http://localhost:8080
 ```
 
+## Generating Reports
+
+After running a load test with `--csv` output, generate reports in four formats:
+
+```bash
+# Run test with CSV output
+locust -f examples/api_load_test.py \
+    --headless --users 50 --spawn-rate 5 \
+    --run-time 2m --host http://localhost:8080 \
+    --csv results
+
+# Generate HTML report (default format)
+locust-report results --output report.html
+
+# Other formats
+locust-report results --format json --output report.json
+locust-report results --format markdown --output report.md
+locust-report results --format junit --output junit-results.xml
+```
+
+Or via Python:
+
+```python
+from locust_templates.runner import generate_report
+
+generate_report("results", "report.html", fmt="html")
+generate_report("results", "report.json", fmt="json")
+```
+
+See the [Report Export Guide](report-export.md) for the full CLI reference and
+CI/CD integration examples.
+
 ## Configuration
 
 Set environment variables or use a `.env` file:

@@ -1,7 +1,7 @@
 # Locust Performance Kit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 172](https://img.shields.io/badge/tests-172%20passed-brightgreen.svg)]()
+[![Tests: 398](https://img.shields.io/badge/tests-398%20passed-brightgreen.svg)]()
 [![Version: 1.2.0](https://img.shields.io/badge/version-1.2.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
@@ -32,11 +32,61 @@ Built by a performance engineer with 6+ years at a major Swiss bank. These templ
   - CSV/JSON export of correlated events and failure chains
   - See [Request Correlation Guide](docs/request-correlation.md) for details
 
+### Report Export (v1.2.0+)
+
+Generate performance reports in **four formats** from Locust CSV output —
+HTML, JSON, Markdown, and JUnit XML — with a unified CLI and Python API.
+
+**CLI:**
+
+```bash
+# Default HTML report
+locust-report results --output report.html
+
+# JSON for CI pipelines, Markdown for PR comments, JUnit XML for test runners
+locust-report results --format json --output report.json
+locust-report results --format markdown --output report.md
+locust-report results --format junit --output junit-results.xml
+
+# With p95/p99 thresholds (exit code 2 on violation → CI gate)
+locust-report results --p95-threshold 500 --p99-threshold 1000 --output report.html
+```
+
+**Python API:**
+
+```python
+from locust_templates.runner import generate_report
+
+# Any format via a single function call
+generate_report("results", "report.html", fmt="html")
+generate_report("results", "report.json", fmt="json", thresholds={"p95": 500})
+generate_report("results", "report.md", fmt="markdown")
+generate_report("results", "junit.xml", fmt="junit")
+```
+
+**Strategy-pattern exporters** (for advanced use):
+
+```python
+from locust_templates.exporters import HTMLExporter, JSONExporter, MarkdownExporter, JUnitXMLExporter
+from locust_templates.report_data import ReportData
+
+data = ReportData.from_csv("results", thresholds={"p95": 500, "p99": 1000})
+HTMLExporter().export(data, "report.html")
+JSONExporter().export(data, "report.json")
+```
+
+All four formats are cross-platform (paths resolved via `pathlib.Path`),
+self-contained, and work in CI artifacts, email attachments, and PR comments.
+
+See [Report Export Guide](docs/report-export.md) for the full CLI reference,
+format comparison table, and CI/CD integration examples.
+
 ### Reporting & Analysis (v1.1.0+)
 - `src/locust_templates/report_generator.py` — HTML report generator from Locust CSV output
   - Self-contained HTML with CSS-only bar charts (no JS dependencies)
   - Summary stats table, per-endpoint p95/p99 metrics, threshold pass/fail indicators
   - Optional correlation section with cascade failure summary and top failure chains
+  - Backward-compatible shims: `to_json()`, `to_markdown()`, `to_junit()` delegate to exporters
 - `src/locust_templates/baseline.py` — Performance regression baseline comparison
   - Save and compare baselines to detect p95 degradations > 10%
   - `RegressionResult` with regressions, improvements, and human-readable summary
@@ -217,9 +267,21 @@ from locust_templates.report_generator import HTMLReportGenerator
 gen = HTMLReportGenerator.from_csv("results", thresholds={"p95": 500, "p99": 1000})
 gen.generate("report.html")
 # report.html is self-contained — no external CSS/JS dependencies
+
+# Also export to JSON, Markdown, and JUnit XML (v1.2.0+)
+gen.to_json("report.json")
+gen.to_markdown("report.md")
+gen.to_junit("junit.xml")
 ```
 
-See [Report Generation Guide](docs/report-generation.md) for details.
+**CLI (v1.2.0+):**
+
+```bash
+locust-report results --format html --output report.html --p95-threshold 500
+```
+
+See [Report Generation Guide](docs/report-generation.md) and
+[Report Export Guide](docs/report-export.md) for details.
 
 ## Performance Regression Baselines (v1.1.0+)
 
@@ -280,7 +342,7 @@ pytest tests/visual/ -v
 ruff check src/ tests/
 ```
 
-All 172 tests pass (134 pre-existing + 38 new for v1.1.0 modules).
+All 398 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 110 for cross-platform report export).
 
 ## Tech Stack
 
@@ -317,13 +379,17 @@ throughput: 1000 RPS
 src/locust_templates/
     __init__.py            — package exports
     api_load.py            — REST API load testing base
+    auth.py                — pluggable authentication providers (v1.2.0)
     baseline.py            — regression baseline comparison (v1.1.0)
+    cli.py                 — locust-report CLI entry point (v1.2.0)
     config.py              — environment-based configuration
     correlator.py          — request correlation & cascade detection (v1.2.0)
+    exporters.py           — HTML/JSON/Markdown/JUnit exporters (v1.2.0)
     metrics.py             — thread-safe metrics collection
     notifications.py       — Slack/Teams webhook notifications (v1.1.0)
+    report_data.py         — ReportData model + from_csv (v1.2.0)
     report_generator.py    — HTML report from CSV (v1.1.0)
-    runner.py              — CLI command builder
+    runner.py              — CLI command builder + generate_report
     shapes.py              — custom load shapes
     soak.py                — endurance testing
     spike.py               — spike testing
@@ -346,6 +412,7 @@ examples/                  — runnable example scripts
 - [Getting Started Guide](docs/getting-started.md)
 - [Writing Custom Locust Scripts](docs/custom-scripts.md)
 - [Report Generation Guide](docs/report-generation.md)
+- [Report Export Guide](docs/report-export.md)
 - [Baseline Comparison Guide](docs/baseline-comparison.md)
 - [Request Correlation Guide](docs/request-correlation.md)
 - [Notifications Guide](docs/notifications.md)

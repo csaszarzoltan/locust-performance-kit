@@ -25,6 +25,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CorrelatedEvent`, `FailureChain`, `CorrelationSummary` data classes
   - CSV and JSON export of correlated events and failure chains
   - Summary statistics: total/cascade/root failures, avg chain depth, top failure chains
+- **Cross-platform report export** (`src/locust_templates/report_data.py`, `exporters.py`, `cli.py`):
+  - `ReportData` dataclass model decoupling CSV parsing from report rendering
+  - `ReportData.from_csv()` factory parses `_stats.csv`, `_failures.csv`, `_exceptions.csv`
+  - Strategy-pattern exporters: `HTMLExporter`, `JSONExporter`, `MarkdownExporter`, `JUnitXMLExporter`
+  - `ReportExporter` ABC with `render()` and `export()` methods
+  - `locust-report` CLI with `--format`, `--output`, `--p95-threshold`, `--p99-threshold`, `--version`
+  - Exit codes: 0 (success), 1 (error), 2 (threshold violation) for CI/CD gating
+  - Cross-platform path handling via `pathlib.Path` (auto-creates parent directories)
+  - `runner.generate_report()` helper for one-call report generation in any format
+  - `runner.build_locust_command()` extended with `report_format`, `report_output`, `p95_threshold`, `p99_threshold` params
+  - 116 new test cases covering data model, exporters, CLI, and runner integration
 - **HTML report correlation section** (`report_generator.py`):
   - Optional `correlation_summary` parameter on `HTMLReportGenerator.__init__`
   - Renders cascade failure summary cards and top failure chains table
@@ -36,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Version bumped from 1.1.0 to 1.2.0
 - Updated `src/locust_templates/__init__.py` to export `RequestCorrelator` and data classes
+- `HTMLReportGenerator` now delegates to `ReportData` + exporters for `to_json()`, `to_markdown()`, `to_junit()` (backward-compatible shims)
+- Test suite expanded from 172 to 398 passing tests
 
 ## [1.1.0] - 2026-07-19
 
