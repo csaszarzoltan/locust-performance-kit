@@ -12,6 +12,11 @@ import time
 
 from locust import HttpUser, between, events, task
 
+from locust_templates.auth import (
+    Authenticator,
+    create_authenticator,
+)
+
 
 class APIUser(HttpUser):
     """Simulated user for API load testing.
@@ -21,9 +26,24 @@ class APIUser(HttpUser):
 
     wait_time = between(1, 3)
 
+    # Auth configuration (class-level, overridable per-subclass)
+    auth_provider: str = "env"
+    auth_kwargs: dict = {}
+
     def on_start(self):
         """Called when a simulated user starts."""
-        pass
+        self._setup_auth()
+
+    def _setup_auth(self):
+        """Initialize the authenticator from class-level config."""
+        try:
+            self._authenticator: Authenticator = create_authenticator(
+                self.auth_provider, **self.auth_kwargs
+            )
+            self._authenticator.authenticate()
+        except Exception:
+            # If auth setup fails (e.g. no env var in dev), fall back gracefully
+            self._authenticator = None
 
     @task(3)
     def get_items(self):
@@ -74,6 +94,14 @@ class APIUser(HttpUser):
 
     def _get_token(self):
         """Generate or retrieve auth token."""
+        authenticator = getattr(self, "_authenticator", None)
+        if authenticator is not None:
+            headers = authenticator.get_headers()
+            # Extract token from "Bearer <token>" format
+            auth_header = headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                return auth_header[7:]
+            return auth_header
         return "test_token_123"
 
     def _get_random_item_id(self):

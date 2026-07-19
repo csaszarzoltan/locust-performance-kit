@@ -16,3 +16,5 @@ venv/
 *.so
 .tox/
 .mypy_cache/
+correlated_events.csv
+correlated_events.json

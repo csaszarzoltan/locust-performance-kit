@@ -16,6 +16,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from locust_templates.correlator import CorrelationSummary
+
 
 class HTMLReportGenerator:
     """Generate self-contained HTML reports from Locust CSV output.
@@ -33,6 +35,7 @@ class HTMLReportGenerator:
         stats: list[dict[str, Any]],
         failures: list[dict[str, Any]] | None = None,
         thresholds: dict[str, float] | None = None,
+        correlation_summary: CorrelationSummary | None = None,
     ) -> None:
         """Initialize with pre-parsed stats and failures.
 
@@ -40,10 +43,13 @@ class HTMLReportGenerator:
             stats: List of stat dicts (one per endpoint).
             failures: List of failure dicts.
             thresholds: Optional dict with p95/p99 threshold values.
+            correlation_summary: Optional CorrelationSummary for failure
+                correlation analysis section.
         """
         self.stats = stats
         self.failures = failures or []
         self.thresholds = thresholds or {}
+        self.correlation_summary = correlation_summary
 
     @classmethod
     def from_csv(
@@ -93,12 +99,172 @@ class HTMLReportGenerator:
         output.write_text(html_content, encoding="utf-8")
         return str(output.resolve())
 
+    def to_json(self, output_path: str | Path, indent: int = 2) -> str:
+        """Export report data as JSON.
+
+        Args:
+            output_path: Where to write the JSON file.
+            indent: JSON indentation (default 2).
+
+        Returns:
+            Absolute path of the written file.
+        """
+        from locust_templates.exporters import JSONExporter
+
+        data = self._to_report_data()
+        exporter = JSONExporter()
+        return exporter.export(data, output_path)
+
+    def to_markdown(self, output_path: str | Path) -> str:
+        """Export report as GitHub-flavored Markdown.
+
+        Args:
+            output_path: Where to write the Markdown file.
+
+        Returns:
+            Absolute path of the written file.
+        """
+        from locust_templates.exporters import MarkdownExporter
+
+        data = self._to_report_data()
+        exporter = MarkdownExporter()
+        return exporter.export(data, output_path)
+
+    def to_junit(self, output_path: str | Path) -> str:
+        """Export report as JUnit XML.
+
+        Args:
+            output_path: Where to write the XML file.
+
+        Returns:
+            Absolute path of the written file.
+        """
+        from locust_templates.exporters import JUnitXMLExporter
+
+        data = self._to_report_data()
+        exporter = JUnitXMLExporter()
+        return exporter.export(data, output_path)
+
+    def _to_report_data(self) -> "ReportData":  # noqa: F821
+        """Convert legacy HTMLReportGenerator state to ReportData."""
+        from locust_templates.report_data import (
+            EndpointStats,
+            ExceptionRecord,
+            FailureRecord,
+            ReportData,
+            ReportMetadata,
+            ReportSummary,
+            ThresholdConfig,
+        )
+        from datetime import datetime, timezone
+
+        endpoints: list[EndpointStats] = []
+        for row in self.stats:
+            name = str(row.get("Name", ""))
+            if name.lower() == "aggregated":
+                continue
+
+            def _sf(key: str) -> float:
+                try:
+                    return float(row.get(key, 0) or 0)
+                except (ValueError, TypeError):
+                    return 0.0
+
+            def _si(key: str) -> int:
+                try:
+                    return int(float(row.get(key, 0) or 0))
+                except (ValueError, TypeError):
+                    return 0
+
+            p95 = _sf("95%")
+            p99 = _sf("99%")
+
+            # Threshold status
+            if not self.thresholds:
+                threshold_status = "SKIP"
+            else:
+                status = "PASS"
+                p95_t = self.thresholds.get("p95")
+                p99_t = self.thresholds.get("p99")
+                if p95_t and p95 > p95_t:
+                    status = "FAIL"
+                if p99_t and p99 > p99_t:
+                    status = "FAIL"
+                threshold_status = status
+
+            endpoints.append(
+                EndpointStats(
+                    name=name,
+                    request_type=str(row.get("Type", "")),
+                    request_count=_si("Request Count"),
+                    failure_count=_si("Failure Count"),
+                    average_response_time_ms=_sf("Average Response Time"),
+                    min_response_time_ms=_sf("Min Response Time"),
+                    max_response_time_ms=_sf("Max Response Time"),
+                    average_content_size=_sf("Average Content Size"),
+                    requests_per_sec=_sf("Requests/s"),
+                    percentile_50=_sf("50%"),
+                    percentile_66=_sf("66%"),
+                    percentile_75=_sf("75%"),
+                    percentile_80=_sf("80%"),
+                    percentile_90=_sf("90%"),
+                    percentile_95=p95,
+                    percentile_98=_sf("98%"),
+                    percentile_99=p99,
+                    threshold_status=threshold_status,
+                )
+            )
+
+        failures = [
+            FailureRecord(
+                method=str(f.get("Method", "")),
+                name=str(f.get("Name", "")),
+                type=str(f.get("Type", "")),
+                error=str(f.get("Error", "")),
+            )
+            for f in self.failures
+        ]
+
+        total_requests = sum(e.request_count for e in endpoints)
+        total_failures = sum(e.failure_count for e in endpoints)
+        total_rps = sum(e.requests_per_sec for e in endpoints)
+        failure_rate = (
+            total_failures / total_requests if total_requests > 0 else 0.0
+        )
+
+        return ReportData(
+            endpoints=endpoints,
+            failures=failures,
+            exceptions=[],
+            summary=ReportSummary(
+                total_requests=total_requests,
+                total_failures=total_failures,
+                endpoint_count=len(endpoints),
+                total_rps=total_rps,
+                failure_rate=failure_rate,
+            ),
+            metadata=ReportMetadata(
+                generated_at=datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                ),
+            ),
+            thresholds=(
+                ThresholdConfig(
+                    p95=self.thresholds.get("p95"),
+                    p99=self.thresholds.get("p99"),
+                )
+                if self.thresholds
+                else None
+            ),
+        )
+
     def _build_html(self) -> str:
         """Build the complete self-contained HTML report."""
         rows_html = self._build_stats_table()
         charts_html = self._build_bar_charts()
         failures_html = self._build_failures_table()
         threshold_html = self._build_threshold_section()
+        correlation_html = self._build_correlation_section()
         summary = self._compute_summary()
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return f"""<!DOCTYPE html>
@@ -155,6 +321,7 @@ class HTMLReportGenerator:
 <h2>p95 / p99 Response Times</h2>
 {charts_html}
 {failures_html}
+{correlation_html}
 <div class="footer">Generated by locust-performance-kit HTMLReportGenerator</div>
 </body>
 </html>"""
@@ -298,6 +465,38 @@ class HTMLReportGenerator:
             '<th>Metrics</th><th>Status</th></tr></thead>'
             f'<tbody>{"".join(items)}</tbody></table>'
         )
+
+    def _build_correlation_section(self) -> str:
+        """Build the failure correlation section if available."""
+        if (
+            not self.correlation_summary
+            or not self.correlation_summary.top_failure_chains
+        ):
+            return ""
+        rows = []
+        for i, chain in enumerate(self.correlation_summary.top_failure_chains[:5], 1):
+            root = chain.root_request
+            esc_name = html.escape(root.name)
+            esc_exc = html.escape(root.exception or "")
+            rows.append(
+                f"<tr><td>{i}</td><td>{esc_name}</td>"
+                f"<td>{chain.cascade_count}</td>"
+                f"<td>{chain.total_chain_length}</td>"
+                f"<td class='fail'>{esc_exc}</td></tr>"
+            )
+        s = self.correlation_summary
+        return f"""<h2>Failure Correlation</h2>
+<div class="summary">
+  <div class="card"><div class="label">Cascade Failures</div>
+    <div class="value">{s.cascade_failures}</div></div>
+  <div class="card"><div class="label">Root Failures</div>
+    <div class="value">{s.root_failures}</div></div>
+  <div class="card"><div class="label">Avg Chain Depth</div>
+    <div class="value">{s.avg_chain_depth:.1f}</div></div>
+</div>
+<table><thead><tr><th>#</th><th>Root Request</th>
+<th>Cascade Count</th><th>Chain Length</th><th>Exception</th></tr></thead>
+<tbody>{''.join(rows)}</tbody></table>"""
 
 
 __all__ = ["HTMLReportGenerator"]
