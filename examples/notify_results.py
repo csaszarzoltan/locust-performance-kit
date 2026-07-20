@@ -7,8 +7,10 @@ Usage:
     export TEAMS_WEBHOOK_URL="https://outlook.office.com/webhook/..."
 
     # Send notification:
-    python examples/notify_results.py slack "Test completed" '{"p95": "350ms", "status": "PASS"}'
-    python examples/notify_results.py teams "Test completed" '{"p95": "350ms", "status": "PASS"}'
+    # python examples/notify_results.py slack "Test completed" \
+    #     '{"p95": "350ms", "status": "PASS"}'
+    # python examples/notify_results.py teams "Test completed" \
+    #     '{"p95": "350ms", "status": "PASS"}'
 """
 
 import json
@@ -28,7 +30,10 @@ from locust_templates.notifications import (
 
 def main():
     if len(sys.argv) < 3:
-        print("Usage: python examples/notify_results.py <provider> <message> [results_json]")
+        print(
+            "Usage: python examples/notify_results.py "
+            "<provider> <message> [results_json]"
+        )
         print("  provider: 'slack' or 'teams'")
         print("  message: summary message string")
         print("  results_json: optional JSON string with results dict")

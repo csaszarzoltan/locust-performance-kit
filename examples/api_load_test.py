@@ -7,8 +7,8 @@ Usage:
     locust -f examples/api_load_test.py --users 100 --spawn-rate 10 --run-time 5m
 
     # Headless mode (CI/CD):
-    locust -f examples/api_load_test.py \\
-        --headless --users 50 --spawn-rate 5 --run-time 2m \\
+    locust -f examples/api_load_test.py \
+        --headless --users 50 --spawn-rate 5 --run-time 2m \
         --host http://localhost:8080
 """
 
@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from locust import between, events, task
+
 from locust_templates.api_load import APIUser
 from locust_templates.metrics import MetricsCollector
 from locust_templates.thresholds import ThresholdChecker

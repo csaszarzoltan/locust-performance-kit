@@ -89,13 +89,13 @@ def main():
 
     if command == "save":
         if len(sys.argv) < 4:
-            print("Usage: python examples/baseline_comparison.py save <csv_prefix> <name>")
+            print("Usage: save <csv_prefix> <name>")
             sys.exit(1)
         cmd_save(sys.argv[2], sys.argv[3])
 
     elif command == "compare":
         if len(sys.argv) < 4:
-            print("Usage: python examples/baseline_comparison.py compare <csv_prefix> <name>")
+            print("Usage: compare <csv_prefix> <name>")
             sys.exit(1)
         cmd_compare(sys.argv[2], sys.argv[3])
 
