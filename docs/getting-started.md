@@ -67,6 +67,30 @@ generate_report("results", "report.json", fmt="json")
 See the [Report Export Guide](report-export.md) for the full CLI reference and
 CI/CD integration examples.
 
+## Live Dashboard (v1.3.0)
+
+Generate a real-time HTML dashboard with Chart.js charts and threshold alerts:
+
+```python
+from locust_templates import LiveDashboard, AlertEngine, AlertRule, MetricsCollector
+
+dash = LiveDashboard(max_points=300)
+collector = MetricsCollector()
+engine = AlertEngine(rules=[
+    AlertRule("p95-high", "p95", ">", 500.0, severity="warning"),
+    AlertRule("err-high", "error_rate", ">", 0.01),
+], dedup=True)
+
+# During the test:
+dash.record_from_collector(collector, active_users=100)
+alerts = engine.check({"p95": latest_p95, "error_rate": latest_err})
+
+# On test quit:
+dash.render_to_file("dashboard.html", alerts=engine.get_alerts())
+```
+
+See the [Live Dashboard & Alerts Guide](live-dashboard.md) for full details.
+
 ## Configuration
 
 Set environment variables or use a `.env` file:
@@ -100,7 +124,8 @@ class MyUser(APIUser):
 ## Next Steps
 
 1. Customize the example scripts for your API
-2. Set up CI/CD with GitHub Actions
-3. Integrate monitoring (AppDynamics, Prometheus)
-4. Define performance thresholds for your application
-5. Use custom shapes for advanced load patterns
+2. Set up the [live dashboard](live-dashboard.md) for real-time monitoring
+3. Set up CI/CD with GitHub Actions
+4. Integrate monitoring (AppDynamics, Prometheus)
+5. Define performance thresholds for your application
+6. Use custom shapes for advanced load patterns

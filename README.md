@@ -155,6 +155,16 @@ export LOCUST_ERROR_RATE_THRESHOLD=0.01
 # Notifications (optional)
 export SLACK_WEBHOOK_URL=https://hooks.slack.com/...
 export TEAMS_WEBHOOK_URL=https://outlook.office.com/...
+
+# Live Dashboard (v1.3.0)
+export LOCUST_DASHBOARD_ENABLED=true
+export LOCUST_DASHBOARD_REFRESH=5
+export LOCUST_DASHBOARD_MAX_POINTS=300
+export LOCUST_DASHBOARD_OUTPUT=dashboard.html
+
+# Threshold Alerts (v1.3.0)
+export LOCUST_ALERTS_ENABLED=true
+export LOCUST_ALERT_RULES='[{"name":"p95-high","metric":"p95","operator":">","threshold":500.0}]'
 ```
 
 Or use a `.env` file:
