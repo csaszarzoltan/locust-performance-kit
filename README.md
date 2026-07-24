@@ -4,6 +4,7 @@
 [![Tests: 496](https://img.shields.io/badge/tests-496%20passed-brightgreen.svg)]()
 [![Version: 1.3.0](https://img.shields.io/badge/version-1.3.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Railway](https://img.shields.io/badge/deployed-Railway-purple.svg)](https://locust-performance-kit-production.up.railway.app)
 
 Production-ready Locust load testing templates, CI/CD pipelines, and monitoring integrations for enterprise-grade performance testing.
 
@@ -136,6 +137,69 @@ locust -f examples/api_load_test.py \
     --host https://api.example.com \
     --csv results
 ```
+
+## Deployment
+
+Deploy the Locust Performance Kit to Railway or run it with Docker for persistent, cloud-hosted load testing.
+
+### Railway (One-Click Deploy)
+
+Deploy with a single click — Railway builds the container, sets the port, and provides a public URL:
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template?template=https://github.com/csaszarzoltan/locust-performance-kit)
+
+**Or deploy via the Railway CLI:**
+
+```bash
+# Install Railway CLI (one-time)
+npm install -g @railway/cli
+
+# Login and deploy
+railway login
+railway init
+railway deploy
+```
+
+Once deployed, your instance is live at:
+
+```
+https://locust-performance-kit-production.up.railway.app
+```
+
+Open that URL in your browser to access the full Locust web UI — configure virtual users, spawn rate, and target host, then start a load test directly from the cloud dashboard.
+
+### Docker (Self-Hosted)
+
+Build and run the container on any Docker host:
+
+```bash
+docker build -t locust-performance-kit .
+docker run -p 8089:8089 locust-performance-kit
+# Open http://localhost:8089
+```
+
+### Environment Variables for Deployment
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `8089` | Web UI port (set automatically by Railway; override for custom setups) |
+
+All other [Configuration](#configuration) environment variables (`LOCUST_HOST`, `LOCUST_USERS`, etc.) work at runtime. Set them via Railway's dashboard or a `.env` file attached to the deployment.
+
+### Health Check
+
+The root path (`/`) responds with HTTP 200 and serves the Locust web UI, making it suitable as a health-check endpoint. Railway is configured to probe this path with a 300-second timeout.
+
+### Public URL Capabilities
+
+Once deployed, the public URL gives you the full Locust feature set:
+
+- **Web UI** — configure and start load tests interactively
+- **Real-time metrics** — RPS, response times, error rates, and active user count
+- **CSV download** — export per-endpoint statistics after a test run
+- **Swarm control** — start/stop tests with custom user counts and spawn rates
+
+For production use, consider adding authentication (see [Authentication](#authentication-v120)) or restricting access via Railway's networking settings.
 
 ## Configuration
 

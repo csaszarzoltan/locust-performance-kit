@@ -3,7 +3,7 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # Copy dependency manifest first for layer caching
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
 
 # Copy source code
 COPY src/ src/
