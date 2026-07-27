@@ -30,6 +30,14 @@ from locust_templates.correlator import (
     FailureChain,
     RequestCorrelator,
 )
+from locust_templates.graphql import (
+    GraphQLResponse,
+    GraphQLUser,
+    QueryComplexityAnalyzer,
+)
+
+# ── New protocol templates ──
+from locust_templates.grpc import GrpcUser
 from locust_templates.live_dashboard import LiveDashboard, TimeSeriesPoint
 from locust_templates.metrics import MetricsCollector
 from locust_templates.notifications import Notifier, SlackNotifier, TeamsNotifier
@@ -50,6 +58,7 @@ from locust_templates.spike import SpikeUser
 from locust_templates.stress import StressUser
 from locust_templates.thresholds import ThresholdChecker, ThresholdResult
 from locust_templates.web_ui import WebUIUser
+from locust_templates.websocket import WebSocketError, WebSocketUser
 
 __all__ = [
     "APIUser",
@@ -97,4 +106,11 @@ __all__ = [
     "default_registry",
     "generate_report",
     "load_config",
+    # ── New protocol templates ──
+    "GrpcUser",
+    "GraphQLUser",
+    "GraphQLResponse",
+    "QueryComplexityAnalyzer",
+    "WebSocketUser",
+    "WebSocketError",
 ]

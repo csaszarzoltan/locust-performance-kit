@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-07-27
+
+### Added
+
+- **gRPC load testing template** (`src/locust_templates/grpc.py`):
+  - `GrpcUser` class with channel management, stub injection, and event reporting
+  - TLS/mTLS support, auth metadata via existing Authenticator system
+  - Optional dependency: `pip install locust-performance-kit[grpc]`
+
+- **GraphQL query benchmarking template** (`src/locust_templates/graphql.py`):
+  - `GraphQLUser` class extending HttpUser with `query()` helper
+  - `GraphQLResponse` dataclass for structured results
+  - `QueryComplexityAnalyzer` with field-weight and depth-based scoring
+  - Complexity threshold via `LOCUST_GRAPHQL_COMPLEXITY_THRESHOLD` env var
+
+- **WebSocket stress testing template** (`src/locust_templates/websocket.py`):
+  - `WebSocketUser` class with concurrent connection management
+  - Configurable `max_connections` per user
+  - Connection pool lifecycle (connect/send/receive/close) with event firing
+  - Optional dependency: `pip install locust-performance-kit[websocket]`
+
+### Changed
+
+- Version bumped from 1.3.0 to 1.4.0
+- pyproject.toml: added `grpc` and `websocket` optional dependency groups
+- Test suite expanded with new template unit tests and integration checks
+
 ## [1.3.0] - 2026-07-19
 
 ### Added

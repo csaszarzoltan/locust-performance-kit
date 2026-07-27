@@ -40,6 +40,20 @@ class TestModuleImports:
         assert hasattr(mod, "ThresholdChecker")
         assert hasattr(mod, "ThresholdResult")
 
+    def test_grpc_imports(self):
+        mod = importlib.import_module("locust_templates.grpc")
+        assert hasattr(mod, "GrpcUser")
+
+    def test_graphql_imports(self):
+        mod = importlib.import_module("locust_templates.graphql")
+        assert hasattr(mod, "GraphQLUser")
+        assert hasattr(mod, "GraphQLResponse")
+        assert hasattr(mod, "QueryComplexityAnalyzer")
+
+    def test_websocket_imports(self):
+        mod = importlib.import_module("locust_templates.websocket")
+        assert hasattr(mod, "WebSocketUser")
+
 
 class TestTemplateStructure:
     """Test that templates have correct Locust structure."""
@@ -85,6 +99,54 @@ class TestTemplateStructure:
                 for m in dir(user_cls)
             )
             assert has_task, f"{user_cls.__name__} must have at least one task"
+
+    # ── New protocol template structural tests ──
+
+    def test_grpc_user_has_wait_time(self):
+        from locust_templates.grpc import GrpcUser
+
+        assert hasattr(GrpcUser, "wait_time")
+
+    def test_grpc_user_has_on_start_on_stop(self):
+        from locust_templates.grpc import GrpcUser
+
+        assert hasattr(GrpcUser, "on_start")
+        assert hasattr(GrpcUser, "on_stop")
+
+    def test_graphql_user_inherits_from_http_user(self):
+        from locust import HttpUser
+
+        from locust_templates.graphql import GraphQLUser
+
+        assert issubclass(GraphQLUser, HttpUser)
+
+    def test_graphql_user_has_wait_time(self):
+        from locust_templates.graphql import GraphQLUser
+
+        assert hasattr(GraphQLUser, "wait_time")
+
+    def test_graphql_user_has_query_method(self):
+        from locust_templates.graphql import GraphQLUser
+
+        assert callable(GraphQLUser.query)
+
+    def test_websocket_user_has_wait_time(self):
+        from locust_templates.websocket import WebSocketUser
+
+        assert hasattr(WebSocketUser, "wait_time")
+
+    def test_websocket_user_has_max_connections(self):
+        from locust_templates.websocket import WebSocketUser
+
+        assert hasattr(WebSocketUser, "max_connections")
+
+    def test_websocket_user_has_connect_send_receive_close(self):
+        from locust_templates.websocket import WebSocketUser
+
+        assert callable(WebSocketUser.connect)
+        assert callable(WebSocketUser.send)
+        assert callable(WebSocketUser.receive)
+        assert callable(WebSocketUser.close)
 
 
 class TestMetricsIntegration:

@@ -63,3 +63,30 @@ def threshold_checker():
     from locust_templates.thresholds import ThresholdChecker
 
     return ThresholdChecker
+
+
+# ── New protocol template fixtures (TDD red phase) ──────────
+
+
+@pytest.fixture
+def grpc_user_class():
+    """Import and return the GrpcUser class (optional dep)."""
+    from locust_templates.grpc import GrpcUser
+
+    return GrpcUser
+
+
+@pytest.fixture
+def graphql_user_class():
+    """Import and return the GraphQLUser class."""
+    from locust_templates.graphql import GraphQLUser
+
+    return GraphQLUser
+
+
+@pytest.fixture
+def websocket_user_class():
+    """Import and return the WebSocketUser class (optional dep)."""
+    from locust_templates.websocket import WebSocketUser
+
+    return WebSocketUser
