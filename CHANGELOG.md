@@ -37,10 +37,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `runner.build_dashboard_command()` helper for CI/CD dashboard generation
   - New exports in `__init__.py`: `LiveDashboard`, `TimeSeriesPoint`, `Alert`, `AlertEngine`, `AlertRule`
 
+- **Observable Performance Pipeline** (`examples/otel_config.py`, `examples/otel_load_test.py`):
+  - `setup_otel()` initializes the OpenTelemetry TracerProvider with configurable exporters (OTLP gRPC, console, or none)
+  - `get_tracer()` returns a named tracer instance for custom span creation
+  - `OTelAPIUser` extends `APIUser` with `on_start()` creating a `user_session` span, sub-spans for each HTTP task (`get_items`, `get_item_detail`, `create_item`), and `on_stop()` flushing spans
+  - Module-level `_on_quit` listener registered on `events.quit` for graceful TracerProvider shutdown
+  - Span context headers (`traceparent`) intentionally NOT injected into target requests to avoid polluting target traces
+  - Environment variables: `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_TRACES_EXPORTER`, `OTEL_SERVICE_NAME`
+  - 78 new pre-development tests (interface + behavioral) covering tracer lifecycle, span attributes, and exporter configuration
+- **CI/CD Performance Gates** (`.github/workflows/perf-test.yml`):
+  - Reusable GitHub Actions workflow with `workflow_dispatch` and `workflow_call` triggers
+  - 4-job pipeline: `load-test` → `generate-reports` → `quality-gate` → `notify`
+  - Quality gate evaluates p95, p99, error rate, and RPS thresholds with exit code 2 on failure
+  - Configurable inputs: `locust-script`, `target-host`, `users`, `spawn-rate`, `run-time`, `p95-threshold`, `p99-threshold`, `error-rate-threshold`, `rps-threshold` (default 0 = disabled)
+  - Reusable outputs: `gate-passed`, `p95-max`, `p99-max`, `error-rate`, `metrics-json` for downstream jobs
+  - Slack + Teams webhook notifications on pass/fail
+  - 16 tests covering interface smoke, quality-gate behavior, notification behavior, and workflow reusability
+- **Grafana Dashboards** (`grafana/dashboards/`):
+  - `locust-overview.json`: Prometheus-based dashboard with Active Users, RPS, Avg Response Time, p95/p99 Latency, Error Rate, Top Slow Endpoints, and Failure Hotspots tables
+  - `locust-traces.json`: Tempo-based dashboard with Service Graph (nodeGraph), Trace List (traceList), Span Duration Heatmap, Error Spans, and Span Attributes panels
+  - `locust-combined.json`: Combined Prometheus + Tempo dashboard with Active Users, RPS, Service Graph, Trace List, CPU Usage, Memory Usage, and Network panels
+  - All dashboards have `datasource`, `environment` template variables with `environment` defaulting to `production`
+  - Tags: `locust`, `performance-testing`, `observability`; unique UIDs prefixed with `locust-`
+  - 14 tests covering interface validity, panel content, data source types, and fieldConfig presence
+
 ### Changed
 
 - Version bumped from 1.2.0 to 1.3.0
-- Test suite expanded from 398 to 496 passing tests (98 new tests)
+- Test suite expanded from 398 to 593 passing tests (78 OTel + 16 CI gates + 14 Grafana dashboards + 98 v1.3.0)
 
 ## [1.2.0] - 2026-07-19
 

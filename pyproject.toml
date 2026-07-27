@@ -16,6 +16,11 @@ dependencies = [
 locust-report = "locust_templates.cli:main"
 
 [project.optional-dependencies]
+otel = [
+    "opentelemetry-api>=1.25.0",
+    "opentelemetry-sdk>=1.25.0",
+    "opentelemetry-exporter-otlp>=1.25.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-html>=3.2.0",

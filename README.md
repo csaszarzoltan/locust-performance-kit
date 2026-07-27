@@ -1,7 +1,9 @@
 # Locust Performance Kit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 496](https://img.shields.io/badge/tests-496%20passed-brightgreen.svg)]()
+[![Tests: 593](https://img.shields.io/badge/tests-593%20passed-brightgreen.svg)]()
+[![Observability](https://img.shields.io/badge/observability-OTel%20%7C%20Prometheus%20%7C%20Tempo-blueviolet)]()
+[![CI Gates](https://img.shields.io/badge/CI-CD%20Gates-blue.svg)]()
 [![Version: 1.3.0](https://img.shields.io/badge/version-1.3.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Railway](https://img.shields.io/badge/deployed-Railway-purple.svg)](https://locust-performance-kit-production.up.railway.app)
@@ -45,6 +47,47 @@ Built by a performance engineer with 6+ years at a major Swiss bank. These templ
   - `AlertEngine` evaluates rules against live metrics, supports dedup mode
   - `AlertEngine.from_config()` factory for config-driven rule setup
   - See [Live Dashboard & Alerts Guide](docs/live-dashboard.md) for details
+
+### Observable Performance Pipeline (v1.3.0+)
+
+Instrument, observe, and gate your load tests with OpenTelemetry tracing,
+pre-built Grafana dashboards, and a reusable CI/CD performance gate workflow.
+
+**OpenTelemetry Tracing** — `examples/otel_config.py` + `examples/otel_load_test.py`
+
+- `setup_otel()` configures the global TracerProvider with OTLP gRPC, console, or no-op exporter
+- `OTelAPIUser` extends `APIUser` with automatic span creation per user session and per HTTP request
+- Span attributes: HTTP method, URL, status code, response time; plus `item_id` and `payload_size_bytes` for detail tasks
+- Graceful shutdown via `events.quit` listener — see [OpenTelemetry Tracing Guide](docs/otel-tracing.md)
+
+**CI/CD Performance Gates** — `.github/workflows/perf-test.yml`
+
+- Reusable 4-job pipeline: load-test → generate-reports → quality-gate → notify
+- Quality gate evaluates p95, p99, error rate, and RPS thresholds; exit code 2 on breach
+- Supports `workflow_dispatch` and `workflow_call` with 9 configurable inputs and 5 outputs
+- Slack + Teams webhook notifications — see [CI/CD Gates Guide](docs/ci-cd-gates.md)
+
+**Grafana Dashboards** — `grafana/dashboards/`
+
+- `locust-overview.json`: Prometheus-based dashboard with 8 panels — Active Users, RPS, Latency (p95/p99), Error Rate, Top Slow Endpoints, Failure Hotspots
+- `locust-traces.json`: Tempo-based dashboard with Service Graph, Trace List, Span Duration Heatmap, Error Spans, Span Attributes
+- `locust-combined.json`: Unified Prometheus + Tempo dashboard with load metrics, traces, and system resources (CPU, Memory, Network)
+- All dashboards include `$datasource` and `$environment` template variables — see [Grafana Dashboards Guide](docs/grafana-dashboards.md)
+
+**Quickstart:**
+
+```bash
+# 1. Export traces to console (local dev)
+OTEL_TRACES_EXPORTER=console \
+  locust -f examples/otel_load_test.py \
+    --headless --users 5 --spawn-rate 1 --run-time 30s \
+    --host https://api.example.com
+
+# 2. Import Grafana dashboards from grafana/dashboards/
+
+# 3. Trigger CI/CD gate (from another workflow)
+# See docs/ci-cd-gates.md for reusable workflow definition
+```
 
 ### Report Export (v1.2.0+)
 
@@ -110,7 +153,8 @@ format comparison table, and CI/CD integration examples.
   - `TeamsNotifier` posts Adaptive Cards to Teams webhooks
 
 ### CI/CD Integration
-- `.github/workflows/performance-ci.yml` — GitHub Actions pipeline for automated performance gates
+- `.github/workflows/performance-ci.yml` — Nightly GitHub Actions pipeline for automated performance gates
+- `.github/workflows/perf-test.yml` — Reusable performance gate workflow with `workflow_dispatch` and `workflow_call` (see [CI/CD Gates Guide](docs/ci-cd-gates.md))
 - Pre-configured thresholds and pass/fail criteria
 - Automatic reporting to Slack/Teams
 
@@ -429,7 +473,7 @@ pytest tests/visual/ -v
 ruff check src/ tests/
 ```
 
-All 496 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 110 for cross-platform report export + 98 for v1.3.0 live dashboard/alerts).
+All 593 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for v1.3.0 live dashboard/alerts + 78 OTel tracing + 16 CI gates + 14 Grafana dashboards + 110 cross-platform report export).
 
 ## Tech Stack
 
@@ -493,10 +537,14 @@ tests/
 docs/                      — documentation
 examples/                  — runnable example scripts
 .github/workflows/         — CI/CD pipeline
+grafana/dashboards/        — Grafana dashboard JSON templates (Prometheus + Tempo)
 ```
 
 ## Documentation
 
+- [OpenTelemetry Tracing Guide](docs/otel-tracing.md)
+- [CI/CD Performance Gates Guide](docs/ci-cd-gates.md)
+- [Grafana Dashboards Guide](docs/grafana-dashboards.md)
 - [Authentication Providers Guide](docs/auth-providers.md)
 - [Getting Started Guide](docs/getting-started.md)
 - [Writing Custom Locust Scripts](docs/custom-scripts.md)
