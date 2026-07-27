@@ -1,0 +1,57 @@
+{
+  "title": "Locust Traces",
+  "uid": "locust-traces",
+  "tags": ["locust", "performance-testing", "observability"],
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Service Graph",
+      "type": "nodeGraph",
+      "datasource": { "type": "tempo", "uid": "Tempo" },
+      "targets": [{ "query": "{service.name=\"locust-performance-test\"}", "refId": "A" }],
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Trace List",
+      "type": "traceList",
+      "datasource": { "type": "tempo", "uid": "Tempo" },
+      "targets": [{ "query": "{service.name=\"locust-performance-test\"}", "refId": "A" }],
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+    },
+    {
+      "title": "Span Duration Heatmap",
+      "type": "heatmap",
+      "datasource": { "type": "tempo", "uid": "Tempo" },
+      "targets": [{ "query": "rate(span_duration_seconds_bucket[5m])", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+    },
+    {
+      "title": "Span Attributes",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "Tempo" },
+      "targets": [{ "query": "{service.name=\"locust-performance-test\"} | span_attributes", "refId": "A" }],
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "title": "Error Spans",
+      "type": "table",
+      "datasource": { "type": "tempo", "uid": "Tempo" },
+      "targets": [{ "query": "{status=\"error\"}", "refId": "A" }],
+      "fieldConfig": { "defaults": {} },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    }
+  ],
+  "templating": {
+    "list": [
+      { "name": "datasource", "type": "datasource", "query": "prometheus" },
+      { "name": "environment", "type": "constant", "query": "production", "hide": 2 }
+    ]
+  }
+}

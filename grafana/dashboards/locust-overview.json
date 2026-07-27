@@ -1,0 +1,81 @@
+{
+  "title": "Locust Overview",
+  "uid": "locust-overview",
+  "tags": ["locust", "performance-testing", "observability"],
+  "schemaVersion": 38,
+  "version": 1,
+  "editable": true,
+  "timezone": "browser",
+  "panels": [
+    {
+      "title": "Active Users",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "sum(locust_users_swarm)", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "short", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+    },
+    {
+      "title": "Total RPS",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "sum(rate(locust_requests_total[5m]))", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "rps", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 }
+    },
+    {
+      "title": "Avg Response Time",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "avg(locust_request_duration_seconds_sum / locust_request_duration_seconds_count)", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 }
+    },
+    {
+      "title": "p95 Latency",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(locust_request_duration_seconds_bucket[5m])) by (le))", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 500}, {"color": "red", "value": 1000}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 }
+    },
+    {
+      "title": "p99 Latency",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.99, sum(rate(locust_request_duration_seconds_bucket[5m])) by (le))", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1000}, {"color": "red", "value": 2000}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 }
+    },
+    {
+      "title": "Error Rate",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "sum(rate(locust_requests_total{state='FAILED'}[5m])) / sum(rate(locust_requests_total[5m]))", "refId": "A" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.01}] } } },
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 }
+    },
+    {
+      "title": "Top Slow Endpoints",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "topk(10, histogram_quantile(0.95, sum(rate(locust_request_duration_seconds_bucket[5m])) by (le, name)))", "refId": "A", "format": "table" }],
+      "fieldConfig": { "defaults": { "unit": "ms", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+    },
+    {
+      "title": "Failure Hotspots",
+      "type": "table",
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "targets": [{ "expr": "topk(10, sum(rate(locust_requests_total{state='FAILED'}[5m])) by (name))", "refId": "A", "format": "table" }],
+      "fieldConfig": { "defaults": { "unit": "none", "thresholds": { "mode": "absolute", "steps": [{"color": "green", "value": null}] } } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+    }
+  ],
+  "templating": {
+    "list": [
+      { "name": "datasource", "type": "datasource", "query": "prometheus" },
+      { "name": "environment", "type": "constant", "query": "production", "hide": 2 }
+    ]
+  }
+}
