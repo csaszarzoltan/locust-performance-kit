@@ -35,6 +35,20 @@ Built by a performance engineer with 6+ years at a major Swiss bank. These templ
   - CSV/JSON export of correlated events and failure chains
   - See [Request Correlation Guide](docs/request-correlation.md) for details
 
+### Multi-Protocol Templates (v1.4.0+)
+- `src/locust_templates/grpc.py` — gRPC load testing with channel management and stub caching
+  - `GrpcUser` extends `User` with channel lifecycle, stub caching, auth integration
+  - Per-call Locust event firing with `request_type="grpc"`
+  - See [gRPC Testing Guide](docs/grpc-testing.md) for details
+- `src/locust_templates/graphql.py` — GraphQL API load testing with query helper and complexity analysis
+  - `GraphQLUser` extends `HttpUser` with `self.query()` helper and `GraphQLResponse`
+  - `QueryComplexityAnalyzer` for pre-flight complexity scoring
+  - See [GraphQL Testing Guide](docs/graphql-testing.md) for details
+- `src/locust_templates/websocket.py` — WebSocket load testing with connection pooling
+  - `WebSocketUser` extends `User` with connect/send/receive/close lifecycle
+  - Connection pool management with `max_connections` limit
+  - See [WebSocket Testing Guide](docs/websocket-testing.md) for details
+
 ### Live Dashboard & Alerts (v1.3.0+)
 - `src/locust_templates/live_dashboard.py` — Real-time live metrics dashboard
   - `LiveDashboard` collects time-series snapshots (avg/p95 RT, throughput, error rate, users)
@@ -517,6 +531,8 @@ src/locust_templates/
     config.py              — environment-based configuration
     correlator.py          — request correlation & cascade detection (v1.2.0)
     exporters.py           — HTML/JSON/Markdown/JUnit exporters (v1.2.0)
+    grpc.py                — gRPC load testing with channel management (v1.4.0)
+    graphql.py             — GraphQL API load testing with query helper (v1.4.0)
     live_dashboard.py      — real-time live metrics dashboard (v1.3.0)
     metrics.py             — thread-safe metrics collection
     notifications.py       — Slack/Teams webhook notifications (v1.1.0)
@@ -529,6 +545,7 @@ src/locust_templates/
     stress.py              — stress testing
     thresholds.py          — threshold validation
     web_ui.py              — browser user journeys
+    websocket.py           — WebSocket load testing with connection pooling (v1.4.0)
 tests/
     unit/                  — unit tests (mocked)
     integration/           — integration tests
@@ -540,8 +557,32 @@ examples/                  — runnable example scripts
 grafana/dashboards/        — Grafana dashboard JSON templates (Prometheus + Tempo)
 ```
 
+## Multi-Protocol Templates (v1.4.0+)
+
+In addition to the core HTTP-based templates, the kit supports three additional
+protocols for modern microservice and real-time application testing:
+
+| Protocol  | User Class       | Install Command                                          | Guide                                |
+|-----------|------------------|----------------------------------------------------------|--------------------------------------|
+| gRPC      | `GrpcUser`       | `pip install locust-performance-kit[grpc]`               | [gRPC Testing Guide](docs/grpc-testing.md) |
+| GraphQL   | `GraphQLUser`    | *(shipped with base kit)*                                | [GraphQL Testing Guide](docs/graphql-testing.md) |
+| WebSocket | `WebSocketUser`  | `pip install locust-performance-kit[websocket]`          | [WebSocket Testing Guide](docs/websocket-testing.md) |
+
+gRPC and WebSocket require optional system dependencies. Install all extras with:
+
+```bash
+pip install locust-performance-kit[grpc,websocket]
+```
+
+Each template integrates with the Locust event system so metrics appear in the
+web UI, CSV exports, and reports. See the per-protocol guides linked above for
+detailed API references, configuration, and best practices.
+
 ## Documentation
 
+- [gRPC Testing Guide](docs/grpc-testing.md)
+- [GraphQL Testing Guide](docs/graphql-testing.md)
+- [WebSocket Testing Guide](docs/websocket-testing.md)
 - [OpenTelemetry Tracing Guide](docs/otel-tracing.md)
 - [CI/CD Performance Gates Guide](docs/ci-cd-gates.md)
 - [Grafana Dashboards Guide](docs/grafana-dashboards.md)

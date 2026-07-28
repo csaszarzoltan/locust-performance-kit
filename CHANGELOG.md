@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-07-28
+
+### Added
+
+- **Multi-Protocol documentation suite**: troubleshooting guide and unified configuration reference for all three protocol templates
+- **Runnable example scripts** for gRPC, GraphQL, and WebSocket — replaces previous TDD stubs with realistic, production-ready Locust tests
+
+### Fixed
+
+- README now includes "Multi-Protocol Templates (v1.4.0+)" section with discoverability links
+- README "Documentation" section now lists all three protocol-specific guides
+- README "What's Inside" and "Project Structure" now include `grpc.py`, `graphql.py`, `websocket.py`
+
 ## [1.4.0] - 2026-07-27
 
 ### Added

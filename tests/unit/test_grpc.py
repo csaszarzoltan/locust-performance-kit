@@ -102,15 +102,21 @@ class TestGrpcChannel:
         )
 
     def test_get_stub_returns_stub_instance(self, grpc_user, mocker):
-        """_get_stub(stub_class) should return a stub for the cached channel."""
+        """_get_stub(stub_class) should return a stub for the cached channel.
+
+        Sets up the user's ``_channel`` so the real ``_get_stub`` can
+        instantiate the stub class — verifying the stub constructor is
+        called with the channel.
+        """
+        mock_channel = MagicMock()
         mock_stub_class = MagicMock()
         mock_stub_instance = MagicMock()
         mock_stub_class.return_value = mock_stub_instance
 
-        mocker.patch.object(grpc_user, "_get_stub", return_value=mock_stub_instance)
+        grpc_user._channel = mock_channel
         stub = grpc_user._get_stub(mock_stub_class)
         assert stub is mock_stub_instance
-        mock_stub_class.assert_called_once()
+        mock_stub_class.assert_called_once_with(mock_channel)
 
 
 # ──────────────────────────────────────────────────────────────
