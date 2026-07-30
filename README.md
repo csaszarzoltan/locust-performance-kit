@@ -624,3 +624,47 @@ MIT License — feel free to use these templates in your projects.
 ---
 
 Star this repo if you find it useful! It helps others discover it.
+
+## Performance Engineering Workspace (v1.5)
+
+Version 1.5 adds a persistent teamwork layer while preserving all existing Locust templates, report exporters, CLI commands, and CI gates.
+
+### Workspaces
+
+- `/workspace/scenarios` visually organizes protocol steps and exports schema-versioned scenarios.
+- `/workspace/runs` tracks desired and connected worker capacity by load zone and produces targeted recovery plans.
+- `/workspace/diagnostics` deduplicates endpoint/cascade/trace evidence and highlights baseline regressions.
+- `/workspace/policies` manages versioned thresholds and time-bounded waivers.
+- `/workspace/vault` stores tenant-scoped secret references without writing plaintext values to audit events.
+- `/workspace/capacity` estimates virtual-user hours, workers, and cost and refuses approval for stale rate cards.
+
+Start the standalone workspace:
+
+```bash
+export FLASK_APP=locust_templates.workspace_api:create_workspace_app
+export LOCUST_WORKSPACE_DB=./locust-workspace.db
+flask run --host 127.0.0.1 --port 8080
+```
+
+The default database path is `/tmp/locust_workspace.db` and is only intended for local use. Production deployments must set `LOCUST_WORKSPACE_DB`, provide an external encryption key adapter, authenticate users before the blueprint, and derive tenant context from trusted identity claims rather than request bodies.
+
+### API example
+
+```bash
+curl -X POST http://localhost:8080/api/v1/scenarios \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: checkout-v1' \
+  -d '{"name":"Checkout","steps":[{"protocol":"http","method":"GET","path":"/health"}]}'
+```
+
+### Validation
+
+```bash
+pytest -q tests/unit/test_product_workspace.py
+pytest -q
+ruff check .
+ruff format --check .
+pyright
+python -m compileall -q src tests examples
+uv build
+```

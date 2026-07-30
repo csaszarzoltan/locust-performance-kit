@@ -176,3 +176,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version bumped from 1.0.0 to 1.1.0
 - Updated `src/locust_templates/__init__.py` to export new modules
 - Added `.gitignore` for Python build artifacts
+
+## [1.5.0] - 2026-07-30
+
+### Added
+
+- A persistent performance engineering workspace with visual scenario projects, distributed run recovery, correlated diagnostics, versioned performance policies, a tenant-scoped test-data vault, and capacity/cost estimates.
+- Six responsive server-rendered workspaces and a versioned Flask API for automation.
+- Idempotent scenario creation, schema-versioned scenario export/import, worker-capacity recovery plans, deduplicated diagnostics, expiring policy waivers, encrypted-at-rest local secrets, and stale rate-card protection.
+- Deterministic unit, repository, API-contract, security, accessibility, and recovery tests.
+
+### Changed
+
+- Bumped the package version to 1.5.0.
