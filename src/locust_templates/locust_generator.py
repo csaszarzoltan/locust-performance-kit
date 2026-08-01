@@ -94,12 +94,12 @@ def _generate_auth_setup(schemes: dict[str, SecurityRequirement]) -> str:
 
 def _generate_endpoint_task(ep: object, auth_header: str | None) -> str:
     """Generate a single @task method for an endpoint."""
+    import re as _re
+
     # Build method name from operation_id or path
     if hasattr(ep, "operation_id") and ep.operation_id:
         op_id = ep.operation_id
-        # camelCase to snake_case
-        import re
-        method_name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", op_id).lower()
+        method_name = _re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", op_id).lower()
     else:
         path_part = ep.path.replace("/", "_").replace("{", "").replace("}", "").strip("_")
         method_name = f"{ep.method}_{path_part}"
@@ -117,46 +117,41 @@ def _generate_endpoint_task(ep: object, auth_header: str | None) -> str:
     url = ep.path
     has_path_params = hasattr(ep, "path_params") and ep.path_params
     if has_path_params:
-        # Convert {paramName} to f-string interpolation
         for pp in ep.path_params:
-            # snake_case the param name for the variable
-            import re
-            snake = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", pp.name).lower()
+            snake = _re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", pp.name).lower()
             url = url.replace(f"{{{pp.name}}}", f"{{{snake}}}")
-        url = f'f"{url}"'
+        url_str = f'f"{url}"'
     else:
-        url = f'"{url}"'
+        url_str = f'"{url}"'
 
-    # Build the request
-    http_method = ep.method.lower()
-    request_args = [f"        resp = self.client.{http_method}({url}"]
+    # Collect keyword arguments
+    kwargs: list[str] = []
 
     # Query params
     if hasattr(ep, "query_params") and ep.query_params:
-        qp_parts = []
-        for qp in ep.query_params:
-            qp_parts.append(f'"{qp.name}": None')
-        request_args.append(f"            params={{{', '.join(qp_parts)}}},")
+        qp_parts = [f'"{qp.name}": None' for qp in ep.query_params]
+        kwargs.append(f"params={{{', '.join(qp_parts)}}}")
 
     # Request body
     if hasattr(ep, "request_body") and ep.request_body:
         body = ep.request_body
         if body.content_type == "application/json":
-            # Try to use example data from schema
             example = body.example
             if not example and body.schema:
-                # Generate a minimal example from schema properties
                 props = body.schema.get("properties", {})
                 example = {k: f"<{v.get('type', 'string')}>" for k, v in props.items()}
             if example:
-                request_args.append(f"            json={example},")
+                kwargs.append(f"json={example}")
         else:
-            # Unsupported content type — no body generated
-            pass
+            pass  # Unsupported content type — no body generated
 
-    # Close the call
-    request_args.append("        )")
-    lines.extend(request_args)
+    # Build the complete call
+    http_method = ep.method.lower()
+    if kwargs:
+        kw_str = ", ".join(kwargs)
+        lines.append(f"        resp = self.client.{http_method}({url_str}, {kw_str})")
+    else:
+        lines.append(f"        resp = self.client.{http_method}({url_str})")
 
     return "\n".join(lines)
 

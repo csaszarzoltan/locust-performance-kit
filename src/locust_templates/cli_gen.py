@@ -95,7 +95,10 @@ def _build_parser() -> argparse.ArgumentParser:
 def cmd_from_openapi(args: argparse.Namespace) -> int:
     """Handle 'locust-gen from-openapi' subcommand."""
     from locust_templates.load_patterns import PatternConfig, resolve_pattern
-    from locust_templates.locust_generator import GenerationConfig, generate_locust_script
+    from locust_templates.locust_generator import (
+        GenerationConfig,
+        generate_locust_script,
+    )
     from locust_templates.openapi_parser import OpenAPIParseError, parse_spec
 
     try:
@@ -105,20 +108,21 @@ def cmd_from_openapi(args: argparse.Namespace) -> int:
         return 1
 
     config = GenerationConfig(
-        base_url=args.base_url,
-        include_comments=not args.no_comments,
-        auth_provider=args.auth_provider,
+        base_url=getattr(args, "base_url", None),
+        include_comments=not getattr(args, "no_comments", False),
+        auth_provider=getattr(args, "auth_provider", None),
     )
 
     result = generate_locust_script(spec, config)
 
     # Append load pattern snippet if pattern is not default
-    if args.pattern and args.pattern != "constant":
+    pattern = getattr(args, "pattern", "constant")
+    if pattern and pattern != "constant":
         pattern_config = PatternConfig(
-            pattern=args.pattern,
-            users=args.users,
-            spawn_rate=args.spawn_rate,
-            runtime=args.runtime,
+            pattern=pattern,
+            users=getattr(args, "users", 10),
+            spawn_rate=getattr(args, "spawn_rate", 1),
+            runtime=getattr(args, "runtime", "5m"),
         )
         try:
             pattern_result = resolve_pattern(pattern_config)
@@ -127,13 +131,13 @@ def cmd_from_openapi(args: argparse.Namespace) -> int:
         except ValueError as exc:
             print(f"Warning: {exc}", file=sys.stderr)
 
-    if args.dry_run:
+    if getattr(args, "dry_run", False):
         print(result.source_code)
     else:
-        output_path = args.output
+        output_path = getattr(args, "output", "locustfile.py")
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(result.source_code)
-        if args.verbose:
+        if getattr(args, "verbose", False):
             print(f"Generated {output_path}")
             print(f"  Endpoints processed: {result.endpoints_processed}")
             print(f"  Auth schemes mapped: {result.auth_schemes_mapped}")

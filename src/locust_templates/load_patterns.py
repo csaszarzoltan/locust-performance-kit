@@ -110,7 +110,7 @@ def resolve_pattern(config: PatternConfig) -> PatternResult:
             "class TestShape(ConstantLoadShape):",
             "    pass",
             "",
-            f"environment.runner.shape_class = TestShape(",
+            "environment.runner.shape_class = TestShape(",
             f"    steady_users={config.users},",
             f"    spawn_rate={config.spawn_rate},",
             f"    duration={duration},",

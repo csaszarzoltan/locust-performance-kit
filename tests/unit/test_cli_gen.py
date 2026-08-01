@@ -86,9 +86,10 @@ class TestCmdFromOpenapiExists:
 class TestMainBehavioral:
     """Behavioral tests for main()."""
 
-    def test_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            main()
+    def test_works(self):
+        # main() with empty argv prints help and returns 0
+        code = main([])
+        assert isinstance(code, int)
 
     def test_returns_int_on_success(self, tmp_path):
         try:
@@ -218,10 +219,10 @@ class TestBuildParserBehavioral:
 class TestCmdFromOpenapiBehavioral:
     """Behavioral tests for cmd_from_openapi()."""
 
-    def test_raises_not_implemented(self):
+    def test_works(self):
         args = argparse.Namespace(spec_file="petstore.yaml")
-        with pytest.raises(NotImplementedError):
-            cmd_from_openapi(args)
+        code = cmd_from_openapi(args)
+        assert isinstance(code, int)
 
     def test_returns_int(self, tmp_path):
         spec_file = tmp_path / "spec.yaml"

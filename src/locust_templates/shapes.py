@@ -15,6 +15,7 @@ import time
 
 from locust import LoadTestShape
 
+
 class StepLoadShape(LoadTestShape):
     """Step-load shape for gradual ramp-up testing.
 
