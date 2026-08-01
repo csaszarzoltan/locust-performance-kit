@@ -105,3 +105,40 @@ class SpikeLoadShape(LoadTestShape):
                 - (self.spike_users - self.baseline_users) * recovery_progress
             )
             return max(current_users, self.baseline_users), self.baseline_users
+
+
+class ConstantLoadShape(LoadTestShape):
+    """Constant user count for the entire test duration.
+
+    Attributes:
+        steady_users: Fixed number of concurrent users.
+        spawn_rate: Users spawned per second to reach steady state.
+        duration: Total test duration in seconds.
+    """
+
+    def __init__(self, steady_users: int, spawn_rate: int, duration: float):
+        raise NotImplementedError("ConstantLoadShape not yet implemented")
+
+    def tick(self):
+        raise NotImplementedError("ConstantLoadShape.tick not yet implemented")
+
+
+class RampUpLoadShape(LoadTestShape):
+    """Gradual ramp from 0 to max_users, hold, then ramp down.
+
+    Attributes:
+        target_users: Maximum concurrent users at peak.
+        ramp_up_duration: Seconds to reach target_users.
+        hold_duration: Seconds to hold at peak.
+        ramp_down_duration: Seconds to ramp back to 0.
+        spawn_rate: Users spawned/despawned per second.
+    """
+
+    def __init__(
+        self, target_users: int, ramp_up_duration: float,
+        hold_duration: float, ramp_down_duration: float, spawn_rate: int,
+    ):
+        raise NotImplementedError("RampUpLoadShape not yet implemented")
+
+    def tick(self):
+        raise NotImplementedError("RampUpLoadShape.tick not yet implemented")

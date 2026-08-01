@@ -99,7 +99,6 @@ class TestWebSocketConnect:
         """connect(url) should return a connection identifier (int or str)."""
         user = websocket_user_class.__new__(websocket_user_class)
         user._connections = {}  # Connection pool
-        mock_ws_instance = MagicMock()
         mocker.patch.object(
             user, "connect", return_value="conn_1"
         )
@@ -110,7 +109,6 @@ class TestWebSocketConnect:
         """connect(url) should open a real websocket connection."""
         user = websocket_user_class.__new__(websocket_user_class)
         user._connections = {}
-        mock_ws_instance = MagicMock()
         mocker.patch.object(
             user, "connect", return_value="conn_1"
         )
@@ -192,7 +190,7 @@ class TestWebSocketReceive:
         mocker.patch.object(
             user, "receive", side_effect=Exception("timeout")
         )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017 — intentionally catches any Exception in TDD stub
             user.receive("conn_1", timeout=1)
 
 
@@ -251,7 +249,7 @@ class TestWebSocketMaxConnections:
             user, "connect",
             side_effect=Exception("Max connections (2) reached"),
         )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017 — intentionally catches any Exception in TDD stub
             user.connect("wss://example.com/ws3")
 
     def test_max_connections_is_class_attribute(self, websocket_user_class):

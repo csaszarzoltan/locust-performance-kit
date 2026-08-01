@@ -10,10 +10,13 @@ dependencies = [
     "locust>=2.20.0",
     "requests>=2.31.0",
     "python-dotenv>=1.0.0",
+    "pyyaml>=6.0",
+    "openapi-spec-validator>=0.7",
 ]
 
 [project.scripts]
 locust-report = "locust_templates.cli:main"
+locust-gen = "locust_templates.cli_gen:main"
 
 [project.optional-dependencies]
 grpc = [
@@ -46,6 +49,10 @@ where = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "UP", "B", "SIM", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E501"]
+"src/**" = ["E501"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
