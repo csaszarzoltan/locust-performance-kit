@@ -247,12 +247,12 @@ class TestConstantLoadShapeBehavioral:
 class TestRampUpLoadShapeBehavioral:
     """Behavioral tests for RampUpLoadShape."""
 
-    def test_init_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            RampUpLoadShape(
-                target_users=50, ramp_up_duration=120,
-                hold_duration=180, ramp_down_duration=60, spawn_rate=5,
-            )
+    def test_works(self):
+        shape = RampUpLoadShape(
+            target_users=50, ramp_up_duration=120,
+            hold_duration=180, ramp_down_duration=60, spawn_rate=5,
+        )
+        assert shape.target_users == 50
 
     def test_tick_returns_tuple_or_none(self):
         try:
@@ -283,9 +283,9 @@ class TestRampUpLoadShapeBehavioral:
 class TestResolvePatternBehavioral:
     """Behavioral tests for resolve_pattern()."""
 
-    def test_raises_not_implemented(self, constant_config):
-        with pytest.raises(NotImplementedError):
-            resolve_pattern(constant_config)
+    def test_works(self, constant_config):
+        result = resolve_pattern(constant_config)
+        assert isinstance(result, PatternResult)
 
     def test_returns_pattern_result(self, constant_config):
         try:
@@ -350,9 +350,9 @@ class TestResolvePatternBehavioral:
 class TestParseDurationBehavioral:
     """Behavioral tests for parse_duration()."""
 
-    def test_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            parse_duration("5m")
+    def test_works(self):
+        result = parse_duration("5m")
+        assert result == 300.0
 
     @pytest.mark.parametrize("duration_str,expected_seconds", [
         ("30s", 30.0),
