@@ -220,9 +220,9 @@ class TestRampUpLoadShapeExists:
 class TestConstantLoadShapeBehavioral:
     """Behavioral tests for ConstantLoadShape."""
 
-    def test_init_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            ConstantLoadShape(steady_users=10, spawn_rate=1, duration=300)
+    def test_works(self):
+        shape = ConstantLoadShape(steady_users=10, spawn_rate=1, duration=300)
+        assert shape.steady_users == 10
 
     def test_tick_returns_tuple(self):
         try:

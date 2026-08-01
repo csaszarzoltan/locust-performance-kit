@@ -220,9 +220,9 @@ class TestHelperFunctionsExist:
 class TestGenerateLocustScriptBehavioral:
     """Behavioral tests for generate_locust_script()."""
 
-    def test_raises_not_implemented(self, minimal_spec):
-        with pytest.raises(NotImplementedError):
-            generate_locust_script(minimal_spec)
+    def test_works(self, minimal_spec):
+        result = generate_locust_script(minimal_spec)
+        assert isinstance(result, GenerationResult)
 
     def test_returns_generation_result(self, minimal_spec):
         try:
