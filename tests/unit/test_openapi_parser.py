@@ -301,9 +301,9 @@ class TestHelperFunctionsExist:
 class TestParseSpecBehavioral:
     """Behavioral tests for parse_spec()."""
 
-    def test_parse_spec_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            parse_spec("petstore.yaml")
+    def test_parse_spec_works(self):
+        spec = parse_spec("petstore.yaml")
+        assert isinstance(spec, OpenAPISpec)
 
     def test_parse_spec_accepts_path_object(self):
         try:
@@ -433,9 +433,12 @@ class TestEndpointExtraction:
 class TestRefResolution:
     """Behavioral tests for $ref resolution."""
 
-    def test_resolve_ref_raises_not_implemented(self):
-        with pytest.raises(NotImplementedError):
-            _resolve_ref({}, "#/components/schemas/Pet")
+    def test_resolve_ref_works(self):
+        result = _resolve_ref(
+            {"components": {"schemas": {"Pet": {"type": "object"}}}},
+            "#/components/schemas/Pet",
+        )
+        assert result == {"type": "object"}
 
     def test_resolve_ref_returns_dict(self):
         try:
