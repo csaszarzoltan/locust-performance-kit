@@ -15,7 +15,6 @@ import time
 
 from locust import LoadTestShape
 
-
 class StepLoadShape(LoadTestShape):
     """Step-load shape for gradual ramp-up testing.
 
@@ -50,7 +49,6 @@ class StepLoadShape(LoadTestShape):
             return None
 
         return target_users, self.step_users
-
 
 class SpikeLoadShape(LoadTestShape):
     """Spike load shape for burst and recovery testing.
@@ -117,10 +115,18 @@ class ConstantLoadShape(LoadTestShape):
     """
 
     def __init__(self, steady_users: int, spawn_rate: int, duration: float):
-        raise NotImplementedError("ConstantLoadShape not yet implemented")
+        super().__init__()
+        self.steady_users = steady_users
+        self.spawn_rate = spawn_rate
+        self.duration = duration
+        self._start_time = time.time()
 
     def tick(self):
-        raise NotImplementedError("ConstantLoadShape.tick not yet implemented")
+        """Return (users, spawn_rate) for the current tick, or None to stop."""
+        run_time = time.time() - self._start_time
+        if run_time >= self.duration:
+            return None
+        return self.steady_users, self.spawn_rate
 
 
 class RampUpLoadShape(LoadTestShape):
@@ -138,7 +144,34 @@ class RampUpLoadShape(LoadTestShape):
         self, target_users: int, ramp_up_duration: float,
         hold_duration: float, ramp_down_duration: float, spawn_rate: int,
     ):
-        raise NotImplementedError("RampUpLoadShape not yet implemented")
+        super().__init__()
+        self.target_users = target_users
+        self.ramp_up_duration = ramp_up_duration
+        self.hold_duration = hold_duration
+        self.ramp_down_duration = ramp_down_duration
+        self.spawn_rate = spawn_rate
+        self._start_time = time.time()
 
     def tick(self):
-        raise NotImplementedError("RampUpLoadShape.tick not yet implemented")
+        """Return (users, spawn_rate) for the current tick, or None to stop."""
+        run_time = time.time() - self._start_time
+
+        if run_time < self.ramp_up_duration:
+            # Ramp-up phase: linear interpolation from 0 to target_users
+            progress = run_time / self.ramp_up_duration
+            current_users = max(1, int(self.target_users * progress))
+            return current_users, self.spawn_rate
+        elif run_time < self.ramp_up_duration + self.hold_duration:
+            # Hold phase
+            return self.target_users, self.spawn_rate
+        elif run_time < self.ramp_up_duration + self.hold_duration + self.ramp_down_duration:
+            # Ramp-down phase: linear interpolation from target_users to 0
+            elapsed_in_ramp_down = run_time - self.ramp_up_duration - self.hold_duration
+            progress = elapsed_in_ramp_down / self.ramp_down_duration
+            current_users = max(0, int(self.target_users * (1 - progress)))
+            if current_users == 0:
+                return None
+            return current_users, self.spawn_rate
+        else:
+            # Test complete
+            return None
