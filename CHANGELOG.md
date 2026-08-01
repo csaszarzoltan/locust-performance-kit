@@ -188,6 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `cli_gen`: `locust-gen` entry point for CLI-based code generation from spec files
   - `petstore.yaml` example OpenAPI spec
   - Dependencies: `openapi-spec-validator`, `pyyaml`
+- **OpenAPI-to-Locust documentation**: full feature guide (`docs/openapi-to-locust.md`), example spec (`examples/openapi_petstore_spec.yaml`), generated locustfile (`examples/openapi_generated_locustfile.py`), README updated with badge, Quick Start, What's Inside, Project Structure, and Documentation links
 - **Performance engineering workspace** (Flask API):
   - Visual scenario projects, distributed run recovery, correlated diagnostics
   - Versioned performance policies, tenant-scoped test-data vault, capacity/cost estimates

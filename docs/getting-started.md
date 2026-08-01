@@ -91,6 +91,26 @@ dash.render_to_file("dashboard.html", alerts=engine.get_alerts())
 
 See the [Live Dashboard & Alerts Guide](live-dashboard.md) for full details.
 
+## Generate from an OpenAPI Spec (v1.5.0)
+
+Skip writing Locust scripts by hand — generate one from your API spec:
+
+```bash
+# Generate from OpenAPI 3.x or Swagger 2.0
+locust-gen from-openapi your-api.yaml --output locustfile.py
+
+# Override target host and add a ramp-up pattern
+locust-gen from-openapi your-api.yaml \
+    --base-url https://staging.api.example.com \
+    --pattern ramp-up --users 50 --spawn-rate 5
+
+# Run it
+locust -f locustfile.py --headless --users 50 --spawn-rate 5
+```
+
+See the [OpenAPI-to-Locust Guide](openapi-to-locust.md) for the full CLI
+reference, Python API, and generated script structure.
+
 ## Configuration
 
 Set environment variables or use a `.env` file:

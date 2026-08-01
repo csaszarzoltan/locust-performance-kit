@@ -1,10 +1,10 @@
 # Locust Performance Kit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 593](https://img.shields.io/badge/tests-593%20passed-brightgreen.svg)]()
+[![Tests: 810](https://img.shields.io/badge/tests-810%20passed-brightgreen.svg)]()
 [![Observability](https://img.shields.io/badge/observability-OTel%20%7C%20Prometheus%20%7C%20Tempo-blueviolet)]()
 [![CI Gates](https://img.shields.io/badge/CI-CD%20Gates-blue.svg)]()
-[![Version: 1.3.0](https://img.shields.io/badge/version-1.3.0-blue.svg)]()
+[![Version: 1.5.0](https://img.shields.io/badge/version-1.5.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Railway](https://img.shields.io/badge/deployed-Railway-purple.svg)](https://locust-performance-kit-production.up.railway.app)
 
@@ -48,6 +48,19 @@ Built by a performance engineer with 6+ years at a major Swiss bank. These templ
   - `WebSocketUser` extends `User` with connect/send/receive/close lifecycle
   - Connection pool management with `max_connections` limit
   - See [WebSocket Testing Guide](docs/websocket-testing.md) for details
+
+### OpenAPI-to-Locust Code Generation (v1.5.0+)
+- `src/locust_templates/openapi_parser.py` — Parse OpenAPI 3.x and Swagger 2.0 specs
+  - Normalizes endpoints, parameters, request bodies, security schemes
+  - Supports `$ref` resolution, bearer auth, apiKey extraction
+- `src/locust_templates/locust_generator.py` — Generate Locust test files from parsed specs
+  - Emits `HttpUser` subclasses with `@task` methods, weights, and auth setup
+  - Handles path params, query params, JSON request bodies
+- `src/locust_templates/load_patterns.py` — Load pattern builder for codegen
+  - `ConstantLoadShape`, `RampUpLoadShape` for generated scripts
+- `src/locust_templates/cli_gen.py` — `locust-gen` CLI entry point
+  - `locust-gen from-openapi` with `--output`, `--base-url`, `--pattern`, `--dry-run`
+  - See [OpenAPI-to-Locust Guide](docs/openapi-to-locust.md) for details
 
 ### Live Dashboard & Alerts (v1.3.0+)
 - `src/locust_templates/live_dashboard.py` — Real-time live metrics dashboard
@@ -183,6 +196,18 @@ pip install -r requirements.txt
 locust -f examples/api_load_test.py --users 100 --spawn-rate 10 --run-time 5m
 # Open http://localhost:8089
 ```
+
+### Generate from an OpenAPI spec
+
+```bash
+# Generate a locustfile from an OpenAPI/Swagger spec
+locust-gen from-openapi openapi.yaml --output locustfile.py
+
+# Run it against your API
+locust -f locustfile.py --host https://api.example.com --users 50 --spawn-rate 5
+```
+
+See [OpenAPI-to-Locust Guide](docs/openapi-to-locust.md) for all flags and options.
 
 ### Headless Mode (CI/CD)
 
@@ -487,7 +512,7 @@ pytest tests/visual/ -v
 ruff check src/ tests/
 ```
 
-All 593 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for v1.3.0 live dashboard/alerts + 78 OTel tracing + 16 CI gates + 14 Grafana dashboards + 110 cross-platform report export).
+All 810 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for v1.3.0 live dashboard/alerts + 78 OTel tracing + 16 CI gates + 14 Grafana dashboards + 110 cross-platform report export + 126 for v1.4.0 multi-protocol + 80 for v1.5.0 OpenAPI-to-Locust).
 
 ## Tech Stack
 
@@ -528,14 +553,18 @@ src/locust_templates/
     auth.py                — pluggable authentication providers (v1.2.0)
     baseline.py            — regression baseline comparison (v1.1.0)
     cli.py                 — locust-report CLI entry point (v1.2.0)
+    cli_gen.py             — locust-gen CLI entry point (v1.5.0)
     config.py              — environment-based configuration
     correlator.py          — request correlation & cascade detection (v1.2.0)
     exporters.py           — HTML/JSON/Markdown/JUnit exporters (v1.2.0)
     grpc.py                — gRPC load testing with channel management (v1.4.0)
     graphql.py             — GraphQL API load testing with query helper (v1.4.0)
     live_dashboard.py      — real-time live metrics dashboard (v1.3.0)
+    load_patterns.py       — load pattern builder for codegen (v1.5.0)
+    locust_generator.py    — Locust script generator from OpenAPI specs (v1.5.0)
     metrics.py             — thread-safe metrics collection
     notifications.py       — Slack/Teams webhook notifications (v1.1.0)
+    openapi_parser.py      — OpenAPI/Swagger spec parser (v1.5.0)
     report_data.py         — ReportData model + from_csv (v1.2.0)
     report_generator.py    — HTML report from CSV (v1.1.0)
     runner.py              — CLI command builder + generate_report
@@ -578,8 +607,43 @@ Each template integrates with the Locust event system so metrics appear in the
 web UI, CSV exports, and reports. See the per-protocol guides linked above for
 detailed API references, configuration, and best practices.
 
+### OpenAPI-to-Locust Code Generation (v1.5.0+)
+
+Generate complete Locust load test scripts from OpenAPI 3.x or Swagger 2.0 specs
+with the `locust-gen` CLI:
+
+```bash
+# Generate a locustfile from an OpenAPI spec
+locust-gen from-openapi openapi.yaml --output locustfile.py
+
+# Override the target host, users, and add a ramp-up pattern
+locust-gen from-openapi openapi.yaml \
+    --base-url https://staging.api.example.com \
+    --users 50 --spawn-rate 5 \
+    --pattern ramp-up --runtime 10m
+
+# Preview the generated script without writing a file
+locust-gen from-openapi openapi.yaml --dry-run
+```
+
+What gets generated per endpoint:
+
+- `@task`-decorated methods with weights (GET=3, POST=2, PUT/PATCH/DELETE=1)
+- Path parameter interpolation as f-strings
+- Query parameter `params` dict
+- JSON request body from spec examples or schema placeholders
+- `on_start()` with env-var-based auth token injection (from spec security schemes)
+- Optional load pattern shapes (constant, ramp-up, spike)
+
+**Spec features:** OpenAPI 3.x and Swagger 2.0, JSON and YAML, `$ref` resolution,
+security scheme extraction (bearer, apiKey), request body schema parsing.
+
+See [OpenAPI-to-Locust Guide](docs/openapi-to-locust.md) for the full CLI
+reference, Python API, data model, and limitations.
+
 ## Documentation
 
+- [OpenAPI-to-Locust Guide](docs/openapi-to-locust.md)
 - [gRPC Testing Guide](docs/grpc-testing.md)
 - [GraphQL Testing Guide](docs/graphql-testing.md)
 - [WebSocket Testing Guide](docs/websocket-testing.md)
