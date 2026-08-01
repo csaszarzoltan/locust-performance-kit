@@ -73,18 +73,20 @@ def _generate_auth_setup(schemes: dict[str, SecurityRequirement]) -> str:
     for name, scheme in schemes.items():
         if scheme.scheme_type == "http" and scheme.scheme_location is None:
             # Bearer token from env var
+            env_var = name.upper() + "_TOKEN"
+            lines.append("        self.headers = {")
             lines.append(
-                f'        self.headers = {{"Authorization": f"Bearer '
-                f'{{os.environ.get(\'{name.upper()}_TOKEN\', os.environ.get(\'API_TOKEN\', \'\''))}}"}}'
+                '            "Authorization": f"Bearer {os.environ.get(\''
+                + env_var + "\', os.environ.get('API_TOKEN', ''))}\""
             )
+            lines.append("        }")
         elif scheme.scheme_type == "apiKey" and scheme.scheme_location == "header":
             header_name = scheme.scheme_name_header or "X-API-Key"
+            env_var = name.upper() + "_KEY"
+            lines.append('        self.headers = self.headers if hasattr(self, "headers") else {}')
             lines.append(
-                f'        self.headers = self.headers if hasattr(self, "headers") else {{}}'
-            )
-            lines.append(
-                f'        self.headers["{header_name}"] = os.environ.get(\'{name.upper()}_KEY\', '
-                f'os.environ.get(\'API_KEY\', \'\'))'
+                '        self.headers["' + header_name + '"] = os.environ.get(\''
+                + env_var + "\', os.environ.get('API_KEY', ''))"
             )
     lines.append("        return self.headers")
     return "\n".join(lines)
@@ -150,6 +152,7 @@ def _generate_endpoint_task(ep: object, auth_header: str | None) -> str:
                 request_args.append(f"            json={example},")
         else:
             # Unsupported content type — no body generated
+            pass
 
     # Close the call
     request_args.append("        )")
