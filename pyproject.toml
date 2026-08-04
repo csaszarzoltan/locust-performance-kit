@@ -1,6 +1,6 @@
 [project]
 name = "locust-performance-kit"
-version = "1.5.0"
+version = "1.6.0"
 description = "Production-ready Locust load testing templates for enterprise performance testing"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -17,6 +17,7 @@ dependencies = [
 [project.scripts]
 locust-report = "locust_templates.cli:main"
 locust-gen = "locust_templates.cli_gen:main"
+locust-kit = "locust_templates.cli_analyze:main"
 
 [project.optional-dependencies]
 grpc = [
