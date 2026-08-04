@@ -132,6 +132,85 @@ When any threshold is breached, the job:
 - Exits with code 2 (failure)
 - Includes failure details in the step summary
 
+## AI Performance Intelligence Analysis (`locust-kit analyze`)
+
+Since v1.6.0 the kit ships an optional analysis step that turns the same CSV
+artifacts into a decision report: anomaly detection (latency/error regressions
+vs a baseline run, error spikes), bottleneck insights (RPS-saturation knee,
+weakest endpoints, metric correlations), and capacity projections (the load
+level where an SLO would breach, e.g. "P95 > 500 ms expected at ~200 RPS").
+
+### Report artifact
+
+`locust-kit analyze --csv <prefix> --slo p95=500 --format markdown|json`
+renders an **AI Performance Intelligence Report** (`# AI Performance
+Intelligence Report`) to stdout or a file via `--output PATH`. The markdown
+report contains SLO Results, Anomalies, Bottlenecks, Capacity Projections and
+Insights sections; the JSON variant is machine-readable and carries the same
+data plus a `summary` block and `exit_code`. The report is produced by
+deterministic statistical rules with **zero configuration** — an optional
+`--llm` flag enriches it via an OpenAI-compatible provider and degrades
+cleanly to the statistical output when no `LOCUST_KIT_LLM_API_KEY` /
+`OPENAI_API_KEY` is configured.
+
+### CI gating exit-code contract
+
+`locust-kit analyze` mirrors the quality-gate exit-code convention and is
+safe to use as the gate step in a pipeline:
+
+| Exit code | Meaning |
+|---|---|
+| `0` | OK — no SLOs configured (advisory) or every configured SLO passed |
+| `1` | Usage / IO / parse error (bad `--slo`, missing `{prefix}_stats.csv`, unresolvable `--baseline`, unsupported `--format`) |
+| `2` | **Measured SLO violation** — at least one `--slo` breached (gate failure) |
+
+Example step inside a reusable workflow job:
+
+```yaml
+- name: Analyze performance intelligence
+  id: analyze
+  run: |
+    locust-kit analyze \
+      --csv results \
+      --slo p95=${{ inputs.p95-threshold }} \
+      --slo error_rate=${{ inputs.error-rate-threshold }} \
+      --baseline results-prior \
+      --format json \
+      --output intelligence-report.json
+    echo "intelligence-exit=$?" >> "$GITHUB_OUTPUT"
+
+- name: Fail on SLO breach
+  if: steps.analyze.outputs.intelligence-exit == '2'
+  run: |
+    echo "::error::Performance SLO breached — see intelligence-report.json"
+    exit 2
+```
+
+### Baseline comparison tie-in
+
+`--baseline <prior-prefix>` compares the current run against a prior Locust CSV
+run (or a stored baseline via `.baselines/<name>.json`, the same store used by
+the `PerformanceBaseline` flow in `docs/baseline-comparison.md`). Regressions
+are reported as `latency_regression` / `error_rate_regression` anomalies with
+severity and are visible in the report's Anomalies table — the exit code is
+driven by SLOs, so baseline comparison stays advisory unless SLOs are set.
+
+### Placement in the pipeline
+
+The analysis step runs after `generate-reports` (it consumes the same
+`{prefix}_stats.csv`, `_failures.csv` and `_stats_history.csv` artifacts) and
+can either replace the `quality-gate` job or run alongside it as a deeper
+insight layer. Upload `intelligence-report.json` (or the markdown variant) as
+a workflow artifact for the audit trail:
+
+```yaml
+- name: Upload intelligence report
+  uses: actions/upload-artifact@v4
+  with:
+    name: intelligence-report
+    path: intelligence-report.json
+```
+
 ## Notifications
 
 Notifications are sent on every run (pass or fail). The `notify` job runs
