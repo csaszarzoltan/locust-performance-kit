@@ -1,10 +1,10 @@
 # Locust Performance Kit
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Tests: 810](https://img.shields.io/badge/tests-810%20passed-brightgreen.svg)]()
+[![Tests: 1068](https://img.shields.io/badge/tests-1068%20passed-brightgreen.svg)]()
 [![Observability](https://img.shields.io/badge/observability-OTel%20%7C%20Prometheus%20%7C%20Tempo-blueviolet)]()
 [![CI Gates](https://img.shields.io/badge/CI-CD%20Gates-blue.svg)]()
-[![Version: 1.5.0](https://img.shields.io/badge/version-1.5.0-blue.svg)]()
+[![Version: 1.6.0](https://img.shields.io/badge/version-1.6.0-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Railway](https://img.shields.io/badge/deployed-Railway-purple.svg)](https://locust-performance-kit-production.up.railway.app)
 
@@ -179,6 +179,19 @@ format comparison table, and CI/CD integration examples.
   - `SlackNotifier` posts formatted message blocks to Slack webhooks
   - `TeamsNotifier` posts Adaptive Cards to Teams webhooks
 
+### AI Performance Intelligence (v1.6.0+)
+- `src/locust_templates/intelligence.py` — Turn Locust CSV runs into decisions
+  - `RunProfile.from_csv()` parses stats/failures/history into per-endpoint p50/p95/p99, RPS, and error rates
+  - `AnomalyDetector` — z-score + EWMA regressions vs a baseline, error-spike windows
+  - `BottleneckDetector` — RPS-saturation knee, weakest-endpoint ranking, metric correlations
+  - `CapacityProjector` — projects p95/p99/error_rate to the load level where an SLO breaches
+  - `analyze_run()` one-call pipeline → `AnalysisReport` (markdown + JSON)
+  - Optional OpenAI-compatible LLM enrichment with clean statistical fallback
+- `src/locust_templates/cli_analyze.py` — `locust-kit analyze` CLI
+  - `--csv <prefix>`, repeatable `--slo KEY=VALUE`, `--baseline`, `--format markdown|json`, `--output`, `--llm`
+  - Exit codes 0/1/2 — SLO violations gate CI with exit code 2
+  - See [AI Performance Intelligence Guide](docs/ai-performance-intelligence.md) for details
+
 ### CI/CD Integration
 - `.github/workflows/performance-ci.yml` — Nightly GitHub Actions pipeline for automated performance gates
 - `.github/workflows/perf-test.yml` — Reusable performance gate workflow with `workflow_dispatch` and `workflow_call` (see [CI/CD Gates Guide](docs/ci-cd-gates.md))
@@ -312,6 +325,13 @@ export LOCUST_DASHBOARD_OUTPUT=dashboard.html
 # Threshold Alerts (v1.3.0)
 export LOCUST_ALERTS_ENABLED=true
 export LOCUST_ALERT_RULES='[{"name":"p95-high","metric":"p95","operator":">","threshold":500.0}]'
+
+# AI Performance Intelligence LLM enrichment (v1.6.0, optional)
+# Precedence: LOCUST_KIT_LLM_* over OPENAI_*; LOCUST_KIT_LLM_BASE_URL defaults
+# to https://api.openai.com/v1, model defaults to gpt-4o-mini
+export LOCUST_KIT_LLM_API_KEY=sk-...          # falls back to OPENAI_API_KEY
+export LOCUST_KIT_LLM_BASE_URL=https://api.openai.com/v1
+export LOCUST_KIT_LLM_MODEL=gpt-4o-mini
 ```
 
 Or use a `.env` file:
@@ -475,6 +495,55 @@ if result.regressions:
 
 See [Baseline Comparison Guide](docs/baseline-comparison.md) for details.
 
+## AI Performance Intelligence (v1.6.0+)
+
+Turn Locust `--csv` outputs into decisions — anomaly detection (latency/error
+regressions vs a baseline run, error spikes), bottleneck insights
+(RPS-saturation knee, weakest endpoints, metric correlations), and capacity
+projections (the load level where an SLO would breach). Zero configuration;
+all rules are deterministic statistics. An optional `--llm` flag enriches the
+report via an OpenAI-compatible provider and degrades cleanly to the
+statistical output when no API key is configured.
+
+**CLI:**
+
+```bash
+# Advisory analysis of a run (no SLOs) — exit 0
+locust-kit analyze --csv tests/fixtures/intelligence/run_a/run_a
+
+# Regressed run vs a baseline, gated on SLOs — exit 2 on breach
+locust-kit analyze \
+  --csv tests/fixtures/intelligence/run_b/run_b \
+  --baseline tests/fixtures/intelligence/run_a/run_a \
+  --slo p95=500 \
+  --slo error_rate=0.01
+
+# JSON report to a file for CI artifacts
+locust-kit analyze --csv results --format json --output intelligence-report.json
+```
+
+Exit codes mirror the quality-gate convention: `0` = OK/advisory, `1` =
+usage/IO/parse error, `2` = **measured SLO violation** (gate failure). The
+examples above use the real Locust CSV fixtures committed under
+`tests/fixtures/intelligence/`.
+
+**Python API:**
+
+```python
+from locust_templates import analyze_run
+
+report = analyze_run(
+    "tests/fixtures/intelligence/run_b/run_b",
+    slos={"p95": 500},
+    baseline_prefix="tests/fixtures/intelligence/run_a/run_a",
+)
+print(report.to_markdown())   # full report
+print(report.exit_code)       # 2 — p95 SLO violated
+```
+
+For the full CLI/API reference, report schema, LLM configuration, and
+detector tuning, see the [AI Performance Intelligence Guide](docs/ai-performance-intelligence.md).
+
 ## Notifications (v1.1.0+)
 
 Send test results to Slack or Teams:
@@ -512,7 +581,7 @@ pytest tests/visual/ -v
 ruff check src/ tests/
 ```
 
-All 810 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for v1.3.0 live dashboard/alerts + 78 OTel tracing + 16 CI gates + 14 Grafana dashboards + 110 cross-platform report export + 126 for v1.4.0 multi-protocol + 80 for v1.5.0 OpenAPI-to-Locust).
+All 1068 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for v1.3.0 live dashboard/alerts + 78 OTel tracing + 16 CI gates + 14 Grafana dashboards + 110 cross-platform report export + 126 for v1.4.0 multi-protocol + 80 for v1.5.0 OpenAPI-to-Locust + 169 for v1.6.0 AI performance intelligence).
 
 ## Tech Stack
 
@@ -553,12 +622,14 @@ src/locust_templates/
     auth.py                — pluggable authentication providers (v1.2.0)
     baseline.py            — regression baseline comparison (v1.1.0)
     cli.py                 — locust-report CLI entry point (v1.2.0)
+    cli_analyze.py         — locust-kit analyze CLI entry point (v1.6.0)
     cli_gen.py             — locust-gen CLI entry point (v1.5.0)
     config.py              — environment-based configuration
     correlator.py          — request correlation & cascade detection (v1.2.0)
     exporters.py           — HTML/JSON/Markdown/JUnit exporters (v1.2.0)
     grpc.py                — gRPC load testing with channel management (v1.4.0)
     graphql.py             — GraphQL API load testing with query helper (v1.4.0)
+    intelligence.py        — AI performance intelligence (v1.6.0)
     live_dashboard.py      — real-time live metrics dashboard (v1.3.0)
     load_patterns.py       — load pattern builder for codegen (v1.5.0)
     locust_generator.py    — Locust script generator from OpenAPI specs (v1.5.0)
@@ -643,6 +714,7 @@ reference, Python API, data model, and limitations.
 
 ## Documentation
 
+- [AI Performance Intelligence Guide](docs/ai-performance-intelligence.md)
 - [OpenAPI-to-Locust Guide](docs/openapi-to-locust.md)
 - [gRPC Testing Guide](docs/grpc-testing.md)
 - [GraphQL Testing Guide](docs/graphql-testing.md)

@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-08-04
+
+### Added
+
+- **AI Performance Intelligence** (`src/locust_templates/intelligence.py`):
+  - `RunProfile.from_csv()` parses `{prefix}_stats.csv`, `_failures.csv`, `_exceptions.csv`, and history (`_stats_history.csv` modern / `_history.csv` legacy) into per-endpoint p50/p95/p99, RPS, error rates, and time series (reuses `ReportData`)
+  - `AnomalyDetector` — z-score + EWMA regression detection vs a baseline run, within-run drift, and error-spike detection with merged windows and severity
+  - `BottleneckDetector` — RPS-saturation knee, weakest-endpoint ranking (top 5), Pearson correlations (error rate vs RPS, p95 vs user count)
+  - `CapacityProjector` — linear/EWMA trend of p95/p99/error_rate to the load level where an `--slo` would breach, with confidence
+  - `check_slos()` and `InsightGenerator` — zero-config deterministic insights
+  - `LLMInsightProvider` — optional OpenAI-compatible enrichment (stdlib `urllib`, never raises) with clean statistical fallback
+  - `analyze_run()` end-to-end pipeline returning an `AnalysisReport` (markdown + JSON)
+- **`locust-kit analyze` CLI** (`src/locust_templates/cli_analyze.py`):
+  - Flags: `--csv <prefix>`, repeatable `--slo KEY=VALUE` (p95/p99 ms, error_rate ratio), `--baseline <prior-prefix|baseline-name>`, `--format markdown|json`, `--output PATH|-`, `--llm`, `--version`
+  - Baseline resolution: prior-run CSV prefix, then `.baselines/<name>.json` (shared `PerformanceBaseline` store)
+  - Exit codes: `0` OK/advisory, `1` usage/IO/parse error, `2` **measured SLO violation** (CI gate signal)
+- **Documentation**: `docs/ai-performance-intelligence.md` CLI/API reference, `examples/analyze_run.py`, README section + badges (v1.6.0, 1068 tests), `docs/ci-cd-gates.md` AI analysis section, `FEATURES-DONE.md`
+- **Test suite**: 169 new tests (131 `test_intelligence` + 38 `test_cli_analyze`) against real Locust 2.46.2 CSV fixtures under `tests/fixtures/intelligence/` (run_a healthy, run_b regressed, run_clean knee, full_history, legacy, edge)
+
+### Changed
+
+- Version bumped from 1.5.0 to 1.6.0
+- `pyproject.toml`: added `locust-kit` console script entry point
+- Full suite: 1068 tests pass (169 added for this feature)
+
 ## [1.4.1] - 2026-07-28
 
 ### Added

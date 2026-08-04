@@ -149,3 +149,4 @@ class MyUser(APIUser):
 4. Integrate monitoring (AppDynamics, Prometheus)
 5. Define performance thresholds for your application
 6. Use custom shapes for advanced load patterns
+7. Analyze runs with [AI Performance Intelligence](ai-performance-intelligence.md) (`locust-kit analyze`)
