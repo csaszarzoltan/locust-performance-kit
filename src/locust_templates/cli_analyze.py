@@ -125,9 +125,13 @@ def main(argv: list[str] | None = None) -> int:
     if args.output == "-":
         print(content)
     else:
-        out = Path(args.output)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(content, encoding="utf-8")
+        try:
+            out = Path(args.output)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            out.write_text(content, encoding="utf-8")
+        except OSError as exc:
+            print(f"error: cannot write output '{args.output}': {exc}", file=sys.stderr)
+            return 1
 
     return report.exit_code
 

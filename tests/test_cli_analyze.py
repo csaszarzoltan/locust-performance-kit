@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import inspect
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -135,6 +136,14 @@ class TestCLIExitCodesBehavior:
 
     def test_unknown_format_exit_one(self, capsys):
         assert _main(["analyze", "--csv", RUN_A, "--format", "xml"]) == 1
+
+    def test_output_path_is_directory_exits_one(self, tmp_path, capsys):
+        """--output pointing at a directory → clean 'error:' + exit 1 (review #5)."""
+        target = tmp_path / "adir"
+        target.mkdir()
+        rc = _main(["analyze", "--csv", RUN_A, "--output", str(target)])
+        assert rc == 1
+        assert "error:" in capsys.readouterr().err
 
     def test_unresolvable_baseline_exit_one(self, capsys):
         assert _main(["analyze", "--csv", RUN_A, "--baseline", "no-such-baseline"]) == 1
@@ -260,6 +269,13 @@ class TestCLIBaselineBehavior:
         )
         monkeypatch.chdir(tmp_path)
         assert _main(["analyze", "--csv", RUN_A, "--baseline", "empty"]) == 0
+
+    def test_stats_only_prefix_with_baseline_exits_cleanly(self, tmp_path, capsys):
+        """Stats-only prefix + baseline: clean exit, no traceback (review #1)."""
+        shutil.copy(FIXTURES / "run_b" / "run_b_stats.csv", tmp_path / "stats_only_stats.csv")
+        rc = _main(["analyze", "--csv", str(tmp_path / "stats_only"), "--baseline", RUN_A])
+        assert rc == 0
+        assert "Traceback" not in capsys.readouterr().err
 
 
 class TestCLILLMBehavior:

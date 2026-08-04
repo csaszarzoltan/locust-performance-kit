@@ -17,6 +17,7 @@ import inspect
 import json
 import re
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -696,6 +697,38 @@ class TestAnomalyDetectorBehavior:
     def test_regressions_empty_when_identical(self):
         assert _regressions(_parse(RUN_A), _parse(RUN_A)) == []
 
+    def test_detect_stats_only_with_baseline_returns_clean(self, tmp_path):
+        """Stats-only prefix (no history) + baseline: no IndexError (review #1)."""
+        shutil.copy(RUN_B.parent / "run_b_stats.csv", tmp_path / "stats_only_stats.csv")
+        profile = _parse(tmp_path / "stats_only", baseline=RUN_A)
+        assert profile.history == []
+        anomalies = _detect(profile)
+        assert anomalies == [] or not any(a.kind == "latency_regression" for a in anomalies)
+
+    def test_regressions_empty_history_returns_clean(self, tmp_path):
+        """Empty-history current vs baseline: [] without raising (brief §4.1.1/4.1.2)."""
+        shutil.copy(RUN_B.parent / "run_b_stats.csv", tmp_path / "stats_only_stats.csv")
+        current = _parse(tmp_path / "stats_only")
+        baseline = _parse(RUN_A)
+        assert _regressions(current, baseline) == []
+
+    def test_error_spike_reference_uses_history_index(self):
+        """Reference EWMA indexes the FULL history, not the flagged subsequence (#4)."""
+        det = AnomalyDetector()
+        profile = _mem_profile([
+            _hp(0.0, 0.06), _hp(10.0, 0.04), _hp(20.0, 0.30), _hp(30.0, 0.25), _hp(40.0, 0.04),
+        ])
+        spikes = det.detect_error_spikes(profile)
+        assert len(spikes) == 1
+        ewma = det._ewma_series([h.error_rate for h in profile.history])
+        # window starts at history index 2 → background is ewma[1] (pre-spike EWMA)
+        assert spikes[0].reference == pytest.approx(
+            max(det.spike_factor * ewma[1], det.spike_min_rate)
+        )
+        assert spikes[0].reference != pytest.approx(
+            max(det.spike_factor * ewma[0], det.spike_min_rate)
+        )
+
     def test_zscore_constant_series_is_zero(self):
         det = AnomalyDetector()
         assert det._zscore_series([2.0, 2.0, 2.0, 2.0, 2.0]) == [0.0, 0.0, 0.0, 0.0, 0.0]
@@ -774,6 +807,20 @@ class TestBottleneckDetectorBehavior:
         bottlenecks = _detect_bottlenecks(_parse(RUN_B))
         weakest = [b for b in bottlenecks if b.kind == "weakest_endpoint"]
         assert weakest and weakest[0].endpoint == "/api/orders"
+
+    def test_weakest_endpoint_metrics_include_real_p95(self):
+        """weakest_endpoint metrics carry the endpoint's real p95/p99/error_rate (#2)."""
+        bottlenecks = _detect_bottlenecks(_parse(RUN_B))
+        weakest = [
+            b for b in bottlenecks
+            if b.kind == "weakest_endpoint" and b.endpoint == "/api/orders"
+        ]
+        assert weakest
+        m = weakest[0].metrics
+        assert m["p95"] == pytest.approx(652.0)
+        assert m["p99"] == pytest.approx(780.0)  # orders 99% column
+        assert m["error_rate"] == pytest.approx(750 / 24000)
+        assert m["score"] > 0
 
     def test_pearson_perfect_positive(self):
         bd = BottleneckDetector()
@@ -895,6 +942,19 @@ class TestInsightGeneratorBehavior:
         insights = _generate(profile, bottlenecks=bottlenecks)
         recs = [i for i in insights if i.category == "recommendation"]
         assert any("saturates" in i.message for i in recs)
+
+    def test_weakest_endpoint_recommendation_shows_real_p95(self):
+        """Recommendation uses the endpoint's real p95, not zeros (#2)."""
+        profile = _parse(RUN_B)
+        bottlenecks = _detect_bottlenecks(profile)
+        weakest = [
+            b for b in bottlenecks
+            if b.kind == "weakest_endpoint" and b.endpoint == "/api/orders"
+        ]
+        insights = _generate(profile, bottlenecks=weakest[:1])
+        recs = [i for i in insights if i.category == "recommendation"]
+        assert recs and "p95=652ms" in recs[0].message
+        assert "error_rate=0.031" in recs[0].message
 
     def test_insights_ordered_by_severity(self):
         profile, anomalies, bottlenecks, projections = self._run_b_objects()
@@ -1045,3 +1105,25 @@ class TestReportRenderingBehavior:
         except NotImplementedError:
             pytest.skip("AnalysisReport.to_json not implemented yet — RED phase")
         json.dumps(data)  # must not raise
+
+    def test_to_json_generated_at_is_real_utc_timestamp(self):
+        """generated_at must be a real UTC timestamp, not a static fake (#3)."""
+        data = self._report().to_json()
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", data["generated_at"])
+        assert data["generated_at"] != "2026-01-01T00:00:00Z"
+        ts = datetime.strptime(data["generated_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+            tzinfo=timezone.utc
+        )
+        assert abs((datetime.now(timezone.utc) - ts).total_seconds()) < 300
+
+    def test_markdown_anomalies_table_cells_escaped(self):
+        """Anomalies table cells escape '|' and newlines (#6)."""
+        profile = _parse(RUN_A)
+        report = AnalysisReport(
+            str(RUN_A), profile,
+            [Anomaly("latency_regression", "/api/a|b", "p95", "warning", 1.0, 0.5,
+                     None, None, "line1\nline2")],
+            [], [], [], [], False, None, 0,
+        )
+        md = report.to_markdown()
+        assert "| latency_regression | /api/a\\|b | warning | — | line1 line2 |" in md

@@ -30,6 +30,7 @@ import sys
 import urllib.request
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -373,6 +374,11 @@ class AnomalyDetector:
         cur_p95 = [h.p95 for h in current.history]
         cur_p99 = [h.p99 for h in current.history]
         cur_err = [h.error_rate for h in current.history]
+        # Stats-only / empty-history runs have no EWMA series to compare —
+        # return cleanly per brief §4.1.1 ("history Optional — empty list")
+        # and §4.1.2 ("never raises on missing data").
+        if not cur_p95:
+            return []
         ewma_p95 = self._ewma_series(cur_p95)
         ewma_p99 = self._ewma_series(cur_p99)
         ewma_err = self._ewma_series(cur_err)
@@ -431,7 +437,7 @@ class AnomalyDetector:
         if not series:
             return []
         ewma = self._ewma_series(series)
-        flagged: list[HistoryPoint] = []
+        flagged: list[tuple[int, HistoryPoint]] = []
         # background threshold: EWMA value preceding the current run, so a
         # sustained spike keeps flagging and merges into one window.
         background = ewma[0]
@@ -439,7 +445,7 @@ class AnomalyDetector:
         for i, h in enumerate(profile.history):
             threshold = max(self.spike_factor * background, self.spike_min_rate)
             if h.error_rate > threshold:
-                flagged.append(h)
+                flagged.append((i, h))
                 if not run_started:
                     background = ewma[i - 1] if i > 0 else ewma[0]
                     run_started = True
@@ -450,22 +456,26 @@ class AnomalyDetector:
         anomalies: list[Anomaly] = []
         i = 0
         while i < len(flagged):
-            start = flagged[i]
+            idx, start = flagged[i]
             j = i
-            while j + 1 < len(flagged) and flagged[j + 1].timestamp - flagged[j].timestamp <= 2 * self.spike_min_duration_s:
+            while j + 1 < len(flagged) and flagged[j + 1][1].timestamp - flagged[j][1].timestamp <= 2 * self.spike_min_duration_s:
                 j += 1
-            end = flagged[j]
+            end = flagged[j][1]
             window = end.timestamp - start.timestamp
             if window < self.spike_min_duration_s:
                 i = j + 1
                 continue
-            peak = max(p.error_rate for p in flagged[i:j + 1])
+            peak = max(p.error_rate for _, p in flagged[i:j + 1])
             if peak >= 0.05 or window >= 60.0:
                 sev = "critical"
             elif peak >= self.spike_min_rate:
                 sev = "warning"
             else:
                 sev = "info"
+            # reference = threshold at the window start: EWMA of the history
+            # point BEFORE the spike (flagged is a subsequence, so carry the
+            # full-series index alongside each point).
+            ref_ewma = ewma[idx - 1] if idx > 0 else ewma[0]
             anomalies.append(
                 Anomaly(
                     "error_spike",
@@ -473,7 +483,7 @@ class AnomalyDetector:
                     "error_rate",
                     sev,
                     peak,
-                    max(self.spike_factor * ewma[i], self.spike_min_rate),
+                    max(self.spike_factor * ref_ewma, self.spike_min_rate),
                     start.timestamp,
                     end.timestamp,
                     f"error rate spiked to {peak:.2%} between t={int(start.timestamp)} and t={int(end.timestamp)}",
@@ -588,7 +598,12 @@ class BottleneckDetector:
                         ep.name,
                         "warning",
                         f"weakness score {score:.2f}",
-                        {"score": score},
+                        {
+                            "score": score,
+                            "p95": ep.p95,
+                            "p99": ep.p99,
+                            "error_rate": ep.error_rate,
+                        },
                         f"Endpoint {ep.name} is weak: p95={ep.p95:.0f}ms, error_rate={ep.error_rate:.3f}",
                     )
                 )
@@ -972,6 +987,11 @@ class LLMInsightProvider:
 # ──────────────────────────────────────────────────────────────
 
 
+def _md_cell(value: object) -> str:
+    """Escape a markdown table cell: pipes and newlines (report §7.3)."""
+    return str(value).replace("|", "\\|").replace("\r", " ").replace("\n", " ")
+
+
 @dataclass
 class AnalysisReport:
     """Full analysis result: profile, findings, insights, SLO verdict, exit code."""
@@ -1010,7 +1030,10 @@ class AnalysisReport:
             lines.append("|---|---|---|---|---|")
             for a in self.anomalies:
                 win = "—" if a.start_time is None else f"{int(a.start_time)}..{int(a.end_time)}"
-                lines.append(f"| {a.kind} | {a.endpoint} | {a.severity} | {win} | {a.message} |")
+                lines.append(
+                    f"| {_md_cell(a.kind)} | {_md_cell(a.endpoint)} | {_md_cell(a.severity)} "
+                    f"| {_md_cell(win)} | {_md_cell(a.message)} |"
+                )
         else:
             lines.append("_No anomalies detected._")
         lines.append("")
@@ -1045,7 +1068,7 @@ class AnalysisReport:
         agg = self.profile.aggregated
         return {
             "csv_prefix": self.csv_prefix,
-            "generated_at": "2026-01-01T00:00:00Z",
+            "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
             "tool": "locust-performance-kit",
             "version": "1.6.0",
             "baseline": self.profile.baseline.csv_prefix if self.profile.baseline else None,
