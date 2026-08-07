@@ -1,16 +1,9 @@
 FROM python:3.11-slim
-
 WORKDIR /app
-
-# Copy dependency manifest first for layer caching
 COPY pyproject.toml README.md ./
-
-# Copy source code
 COPY src/ src/
-
-# Install package and dependencies
 RUN pip install --no-cache-dir .
-
-EXPOSE ${PORT}
-
-CMD ["sh", "-c", "locust -f src/locust_templates/api_load.py --web-host 0.0.0.0 --web-port ${PORT:-8089}"]
+ENV PORT=8080 LOCUST_WORKSPACE_ENV=production LOCUST_WORKSPACE_ROOT=/data
+VOLUME ["/data"]
+EXPOSE 8080
+CMD ["sh", "-c", "test -n \"$LOCUST_WORKSPACE_API_KEY\" && exec gunicorn --bind 0.0.0.0:${PORT} --workers 2 'locust_templates.workspace_api:create_workspace_app()'"]

@@ -12,6 +12,19 @@ Production-ready Locust load testing templates, CI/CD pipelines, and monitoring 
 
 Built by a performance engineer with 6+ years at a major Swiss bank. These templates have been battle-tested on real banking applications handling millions of transactions.
 
+## Trustworthy run-to-decision workflow (this pass)
+
+The research-ranked P0 workflow is now integrated: open `/workspace/start` for a guided local analysis, compare against a baseline, inspect source-linked deterministic findings, and export a portable CI evidence bundle.
+
+```bash
+flask --app locust_templates.workspace_api:create_workspace_app run
+locust-kit analyze --csv results --slo p95=500 --bundle evidence.zip
+```
+
+See [Trustworthy run-to-decision workflow](docs/trustworthy-run-workflow.md).
+
+For production, set `LOCUST_WORKSPACE_ENV=production`, `LOCUST_WORKSPACE_ROOT`, and a strong `LOCUST_WORKSPACE_API_KEY`, then serve with Gunicorn. Production requests require `X-API-Key`, and analysis paths are confined to the configured workspace root.
+
 ## What's Inside
 
 ### Core Templates

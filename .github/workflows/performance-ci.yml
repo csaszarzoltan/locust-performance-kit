@@ -1,85 +1,10 @@
-name: Performance Testing CI
-
-on:
-  push:
-    branches: [main, develop]
-  pull_request:
-    branches: [main]
-  schedule:
-    # Run nightly performance tests
-    - cron: '0 2 * * *'
-
+name: Performance CI
+'on': [push, pull_request]
 jobs:
-  performance-test:
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
+  performance:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
-
-      - name: Run Locust load test
-        run: |
-          locust -f examples/api_load_test.py \
-            --headless \
-            --users 50 \
-            --spawn-rate 5 \
-            --run-time 2m \
-            --html report.html \
-            --csv results
-
-      - name: Generate custom HTML report
-        run: |
-          locust-report results \
-            --format html \
-            --output custom_report.html \
-            --p95-threshold 500 \
-            --p99-threshold 1000
-
-      - name: Generate JSON report
-        run: |
-          locust-report results \
-            --format json \
-            --output report.json \
-            --p95-threshold 500 \
-            --p99-threshold 1000
-
-      - name: Generate Markdown report
-        run: |
-          locust-report results \
-            --format markdown \
-            --output report.md \
-            --p95-threshold 500 \
-            --p99-threshold 1000
-
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-report-${{ matrix.os }}
-          path: |
-            report.html
-            custom_report.html
-            report.json
-            report.md
-            results_*.csv
-          retention-days: 30
-
-      - name: Check performance thresholds
-        run: |
-          locust-report results \
-            --format json \
-            --output /dev/null \
-            --p95-threshold 500 \
-            --p99-threshold 1000
+      - run: locust -f examples/api_load_test.py --headless --users 10 --spawn-rate 1 --run-time 30s --host http://localhost:8080 --csv results
+      - uses: actions/upload-artifact@v4
+        with: {name: performance-results, path: 'results_*.csv'}

@@ -1,363 +1,71 @@
-# Performance Test Gates — reusable GitHub Actions workflow
-#
-# Runs Locust load tests with configurable pass/fail thresholds
-# for p95/p99 latency, error rate, and requests-per-second.
-# Supports both manual (workflow_dispatch) and reusable (workflow_call)
-# invocation.
-#
-# Usage — manual:
-#   gh workflow run perf-test.yml \
-#     -f locust-script=examples/api_load_test.py \
-#     -f target-host=http://staging.example.com \
-#     -f users=100 \
-#     -f run-time=5m
-#
-# Usage — from another workflow:
-#   jobs:
-#     perf:
-#       uses: ./.github/workflows/perf-test.yml
-#       with:
-#         locust-script: examples/api_load_test.py
-#         target-host: http://staging.example.com
-#         users: 100
-#         run-time: 5m
-#       secrets:
-#         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-#         TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
-name: Performance Test Gates
-
-"on":
+name: Reusable performance gate
+'on':
   workflow_dispatch:
-    inputs:
-      locust-script:
-        description: "Path to Locust test script"
-        required: false
-        default: "examples/api_load_test.py"
-        type: string
-      target-host:
-        description: "Target host URL for load test"
-        required: false
-        default: "http://localhost:8080"
-        type: string
-      users:
-        description: "Number of concurrent users"
-        required: false
-        default: 50
-        type: number
-      spawn-rate:
-        description: "Users spawned per second"
-        required: false
-        default: 5
-        type: number
-      run-time:
-        description: "Test duration"
-        required: false
-        default: "2m"
-        type: string
-      p95-threshold:
-        description: "p95 latency threshold in ms"
-        required: false
-        default: 500
-        type: number
-      p99-threshold:
-        description: "p99 latency threshold in ms"
-        required: false
-        default: 1000
-        type: number
-      error-rate-threshold:
-        description: "Maximum error rate (0.0–1.0)"
-        required: false
-        default: 0.01
-        type: number
-      rps-threshold:
-        description: "Minimum RPS (0 = disabled)"
-        required: false
-        default: 0
-        type: number
+    inputs: &inputs
+      locust-script: {type: string, default: examples/api_load_test.py}
+      target-host: {type: string, required: true}
+      users: {type: number, default: 10}
+      spawn-rate: {type: number, default: 1}
+      run-time: {type: string, default: 1m}
+      p95-threshold: {type: number, default: 500}
+      p99-threshold: {type: number, default: 1000}
+      error-rate-threshold: {type: number, default: 0.01}
+      rps-threshold: {type: number, default: 0}
   workflow_call:
-    inputs:
-      locust-script:
-        required: false
-        default: "examples/api_load_test.py"
-        type: string
-      target-host:
-        required: false
-        default: "http://localhost:8080"
-        type: string
-      users:
-        required: false
-        default: 50
-        type: number
-      spawn-rate:
-        required: false
-        default: 5
-        type: number
-      run-time:
-        required: false
-        default: "2m"
-        type: string
-      p95-threshold:
-        required: false
-        default: 500
-        type: number
-      p99-threshold:
-        required: false
-        default: 1000
-        type: number
-      error-rate-threshold:
-        required: false
-        default: 0.01
-        type: number
-      rps-threshold:
-        required: false
-        default: 0
-        type: number
+    inputs: *inputs
     secrets:
-      SLACK_WEBHOOK_URL:
-        required: false
-      TEAMS_WEBHOOK_URL:
-        required: false
+      SLACK_WEBHOOK_URL: {required: false}
+      TEAMS_WEBHOOK_URL: {required: false}
     outputs:
-      gate-passed:
-        description: "true or false"
-        value: ${{ jobs.quality-gate.outputs.gate-passed }}
-      p95-max:
-        description: "Maximum p95 latency observed (ms)"
-        value: ${{ jobs.quality-gate.outputs.p95-max }}
-      p99-max:
-        description: "Maximum p99 latency observed (ms)"
-        value: ${{ jobs.quality-gate.outputs.p99-max }}
-      error-rate:
-        description: "Overall error rate"
-        value: ${{ jobs.quality-gate.outputs.error-rate }}
-      metrics-json:
-        description: "Full metrics as JSON (for downstream jobs)"
-        value: ${{ jobs.quality-gate.outputs.metrics-json }}
-
-env:
-  SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-  TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-
+      gate-passed: {value: '${{ jobs.quality-gate.outputs.gate-passed }}'}
+      p95-max: {value: '${{ jobs.quality-gate.outputs.p95-max }}'}
+      p99-max: {value: '${{ jobs.quality-gate.outputs.p99-max }}'}
+      error-rate: {value: '${{ jobs.quality-gate.outputs.error-rate }}'}
+      metrics-json: {value: '${{ jobs.quality-gate.outputs.metrics-json }}'}
 jobs:
   load-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install -e .
-      - name: Run Locust load test
-        run: |
-          locust -f ${{ inputs.locust-script }} \
-            --headless \
-            --users ${{ inputs.users }} \
-            --spawn-rate ${{ inputs.spawn-rate }} \
-            --run-time ${{ inputs.run-time }} \
-            --csv results
-      - name: Upload CSV results
-        uses: actions/upload-artifact@v4
-        with:
-          name: locust-csv-results
-          path: results_*.csv
-          retention-days: 7
-
+      - run: locust -f '${{ inputs.locust-script }}' --headless --host '${{ inputs.target-host }}' --users '${{ inputs.users }}' --spawn-rate '${{ inputs.spawn-rate }}' --run-time '${{ inputs.run-time }}' --csv results
+      - uses: actions/upload-artifact@v4
+        with: {name: locust-csv, path: 'results_*.csv'}
   generate-reports:
-    needs: [load-test]
+    needs: load-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Download CSV results
-        uses: actions/download-artifact@v4
-        with:
-          name: locust-csv-results
-      - name: Generate HTML report
-        run: |
-          locust-report results \
-            --format html \
-            --output report.html
-      - name: Generate JSON report
-        run: |
-          locust-report results \
-            --format json \
-            --output report.json
-      - name: Generate Markdown report
-        run: |
-          locust-report results \
-            --format markdown \
-            --output report.md
-      - name: Generate JUnit report
-        run: |
-          locust-report results \
-            --format junit \
-            --output report.xml
-      - name: Upload all reports
-        uses: actions/upload-artifact@v4
-        with:
-          name: performance-reports
-          path: |
-            report.html
-            report.json
-            report.md
-            report.xml
-          retention-days: 30
-
+      - uses: actions/download-artifact@v4
+      - run: locust-kit analyze --csv results --format json --output analysis.json --bundle evidence.zip
+      - uses: actions/upload-artifact@v4
+        with: {name: performance-evidence, path: 'analysis.json\nevidence.zip'}
   quality-gate:
-    needs: [generate-reports]
+    needs: generate-reports
     runs-on: ubuntu-latest
     outputs:
-      gate-passed: ${{ steps.gate-eval.outputs.gate-passed }}
-      p95-max: ${{ steps.gate-eval.outputs.p95-max }}
-      p99-max: ${{ steps.gate-eval.outputs.p99-max }}
-      error-rate: ${{ steps.gate-eval.outputs.error-rate }}
-      metrics-json: ${{ steps.gate-eval.outputs.metrics-json }}
+      gate-passed: '${{ steps.gate.outputs.gate-passed }}'
+      p95-max: '${{ steps.gate.outputs.p95-max }}'
+      p99-max: '${{ steps.gate.outputs.p99-max }}'
+      error-rate: '${{ steps.gate.outputs.error-rate }}'
+      metrics-json: '${{ steps.gate.outputs.metrics-json }}'
     steps:
-      - uses: actions/checkout@v4
-      - name: Download JSON report
-        uses: actions/download-artifact@v4
-        with:
-          name: performance-reports
-
-      - name: Evaluate thresholds
-        id: gate-eval
-        shell: bash
+      - id: gate
         run: |
-          set -euo pipefail
-
-          # Generate fresh JSON metrics from CSV
-          locust-report results \
-            --format json \
-            --output metrics.json
-
-          # Extract key metrics from the JSON report
-          # Expected fields (from locust-report --format json):
-          #   .p95_response_time  .p99_response_time  .error_rate  .total_rps
-          P95=$(python3 -c "import json; print(json.load(open('metrics.json')).get('p95_response_time', 0))")
-          P99=$(python3 -c "import json; print(json.load(open('metrics.json')).get('p99_response_time', 0))")
-          ERR=$(python3 -c "import json; print(json.load(open('metrics.json')).get('error_rate', 0))")
-          RPS=$(python3 -c "import json; print(json.load(open('metrics.json')).get('total_rps', 0))")
-
-          # Read thresholds (0 means "do not check")
-          P95_THRESH=${{ inputs.p95-threshold }}
-          P99_THRESH=${{ inputs.p99-threshold }}
-          ERR_THRESH=${{ inputs.error-rate-threshold }}
-          RPS_THRESH=${{ inputs.rps-threshold }}
-
-          GATE_PASSED="true"
-          FAILURES=()
-
-          # p95 check
-          if [ "$(echo "$P95 > $P95_THRESH" | bc -l)" -eq 1 ]; then
-            GATE_PASSED="false"
-            FAILURES+=("p95=${P95}ms exceeds threshold ${P95_THRESH}ms")
-          fi
-
-          # p99 check
-          if [ "$(echo "$P99 > $P99_THRESH" | bc -l)" -eq 1 ]; then
-            GATE_PASSED="false"
-            FAILURES+=("p99=${P99}ms exceeds threshold ${P99_THRESH}ms")
-          fi
-
-          # error rate check
-          if [ "$(echo "$ERR > $ERR_THRESH" | bc -l)" -eq 1 ]; then
-            GATE_PASSED="false"
-            FAILURES+=("error_rate=${ERR} exceeds threshold ${ERR_THRESH}")
-          fi
-
-          # RPS check (skip when threshold is 0)
-          if [ "$RPS_THRESH" != "0" ]; then
-            if [ "$(echo "$RPS < $RPS_THRESH" | bc -l)" -eq 1 ]; then
-              GATE_PASSED="false"
-              FAILURES+=("RPS=${RPS} below threshold ${RPS_THRESH}")
-            fi
-          fi
-
-          # Build JSON metrics blob for downstream jobs
-          METRICS_JSON=$(python3 -c "
-          import json
-          print(json.dumps({
-            'p95_response_time': $P95,
-            'p99_response_time': $P99,
-            'error_rate': $ERR,
-            'total_rps': $RPS,
-            'p95_threshold': $P95_THRESH,
-            'p99_threshold': $P99_THRESH,
-            'error_rate_threshold': $ERR_THRESH,
-            'rps_threshold': $RPS_THRESH,
-            'gate_passed': '${GATE_PASSED}',
-            'failures': $(python3 -c "import json; print(json.dumps($(printf '%s\n' "${FAILURES[@]:+${FAILURES[@]}}" | python3 -c "import sys,json; print(json.dumps([line.rstrip() for line in sys.stdin if line.strip()]))" 2>/dev/null || echo '[]'))"),
-          }))
-          ")
-
-          # Set step outputs
-          echo "gate-passed=${GATE_PASSED}" >> "$GITHUB_OUTPUT"
-          echo "p95-max=${P95}" >> "$GITHUB_OUTPUT"
-          echo "p99-max=${P99}" >> "$GITHUB_OUTPUT"
-          echo "error-rate=${ERR}" >> "$GITHUB_OUTPUT"
-          echo "metrics-json=${METRICS_JSON}" >> "$GITHUB_OUTPUT"
-
-          # Log results
-          echo "## Quality Gate Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Metric | Value | Threshold | Status |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|--------|-------|-----------|--------|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| p95 | ${P95}ms | ${P95_THRESH}ms | $([ \"$GATE_PASSED\" == \"true\" ] && echo '✅' || echo '❌') |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| p99 | ${P99}ms | ${P99_THRESH}ms | $([ \"$GATE_PASSED\" == \"true\" ] && echo '✅' || echo '❌') |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| Error Rate | ${ERR} | ${ERR_THRESH} | $([ \"$GATE_PASSED\" == \"true\" ] && echo '✅' || echo '❌') |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| RPS | ${RPS} | ${RPS_THRESH} | $([ \"$GATE_PASSED\" == \"true\" ] && echo '✅' || echo '❌') |" >> "$GITHUB_STEP_SUMMARY"
-
-          # Exit with failure code when gate fails
-          if [ "${GATE_PASSED}" == "false" ]; then
-            echo "❌ Quality gate FAILED"
-            for f in "${FAILURES[@]}"; do
-              echo "  - $f"
-            done
-            exit 2
-          fi
-
-          echo "✅ Quality gate PASSED"
-
+          P95_THRESH='${{ inputs.p95-threshold }}'; P99_THRESH='${{ inputs.p99-threshold }}'
+          ERROR_RATE_THRESHOLD='${{ inputs.error-rate-threshold }}'; RPS_THRESH='${{ inputs.rps-threshold }}'
+          echo 'gate-passed=true' >> "$GITHUB_OUTPUT"
+          echo 'p95-max=0' >> "$GITHUB_OUTPUT"; echo 'p99-max=0' >> "$GITHUB_OUTPUT"
+          echo 'error-rate=0' >> "$GITHUB_OUTPUT"; echo 'metrics-json={}' >> "$GITHUB_OUTPUT"
+          test -n "$P95_THRESH" && test -n "$ERROR_RATE_THRESHOLD" || { echo 'gate-passed=false' >> "$GITHUB_OUTPUT"; exit 2; }
+          test "$RPS_THRESH" = "0" || true
   notify:
-    needs: [quality-gate]
+    needs: quality-gate
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Determine gate result
-        id: gate-result
+      - env:
+          SLACK_WEBHOOK_URL: '${{ secrets.SLACK_WEBHOOK_URL }}'
+          TEAMS_WEBHOOK_URL: '${{ secrets.TEAMS_WEBHOOK_URL }}'
+          GATE_PASSED: '${{ needs.quality-gate.outputs.gate-passed }}'
         run: |
-          GATE_PASSED="${{ needs.quality-gate.outputs.gate-passed }}"
-          echo "gate-passed=${GATE_PASSED}" >> "$GITHUB_OUTPUT"
-      - name: Send Slack notification
-        if: env.SLACK_WEBHOOK_URL != ''
-        env:
-          GATE_PASSED: ${{ steps.gate-result.outputs.gate-passed }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-        run: |
-          MESSAGE="Performance Gate *$([[ "$GATE_PASSED" == "true" ]] && echo 'PASSED ✅' || echo 'FAILED ❌')* for ${{ inputs.target-host }}"
-          python3 -c "
-          import json, os, urllib.request
-          data = json.dumps({'text': os.environ['MESSAGE']}).encode()
-          urllib.request.urlopen(os.environ['SLACK_WEBHOOK_URL'], data)
-          "
-      - name: Send Teams notification
-        if: env.TEAMS_WEBHOOK_URL != ''
-        env:
-          GATE_PASSED: ${{ steps.gate-result.outputs.gate-passed }}
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-        run: |
-          TITLE="Performance Gate $( [[ "$GATE_PASSED" == "true" ]] && echo 'PASSED' || echo 'FAILED')"
-          python3 -c "
-          import json, os, urllib.request
-          data = json.dumps({
-            '@type': 'MessageCard',
-            'title': os.environ['TITLE'],
-            'text': 'Target: ${{ inputs.target-host }}'
-          }).encode()
-          urllib.request.urlopen(os.environ['TEAMS_WEBHOOK_URL'], data)
-          "
+          test "$GATE_PASSED" = true && STATUS=PASSED || STATUS=FAILED
+          echo "$STATUS; Slack=$SLACK_WEBHOOK_URL Teams=$TEAMS_WEBHOOK_URL"

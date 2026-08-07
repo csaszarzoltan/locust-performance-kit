@@ -24,6 +24,7 @@ import json
 import sys
 from pathlib import Path
 
+from locust_templates.evidence_bundle import create_evidence_bundle
 from locust_templates.intelligence import analyze_run
 
 __version__ = "1.6.0"
@@ -59,6 +60,10 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument(
         "--output", default="-",
         help="Output file path, or '-' for stdout (default: -)",
+    )
+    analyze.add_argument(
+        "--bundle", default=None, metavar="PATH",
+        help="Write a schema-v1 portable evidence ZIP alongside the report",
     )
     analyze.add_argument(
         "--llm", action="store_true", default=False,
@@ -116,6 +121,15 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+    if args.bundle:
+        try:
+            create_evidence_bundle(
+                args.csv, args.bundle, baseline_prefix=args.baseline, slos=slos or None
+            )
+        except (OSError, ValueError) as exc:
+            print(f"error: cannot write evidence bundle: {exc}", file=sys.stderr)
+            return 1
 
     content = (
         json.dumps(report.to_json(), indent=2)

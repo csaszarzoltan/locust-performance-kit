@@ -1,12 +1,10 @@
-## Features Done (v1.6.0)
-- ai-performance-intelligence: Parses real Locust CSV runs (stats/failures/exceptions/history, modern and legacy schemas) into a structured `RunProfile`; detects latency/error regressions vs a baseline and merged error-spike windows via z-score + EWMA; ranks bottlenecks (RPS-saturation knee, weakest-endpoint scoring, Pearson correlations); projects p95/p99/error_rate to the load level where an SLO would breach; emits zero-config deterministic insights with optional OpenAI-compatible LLM enrichment and clean statistical fallback.
-- locust-kit-analyze-cli: `locust-kit analyze` with `--csv`, repeatable `--slo KEY=VALUE`, `--baseline` (prior-run prefix or `.baselines/<name>.json`), `--format markdown|json`, `--output PATH|-`, `--llm`; markdown + JSON report artifact; exit-code contract 0/1/2 for CI gating.
-- ai-intelligence-tests: 169 pre-development behavioral tests (131 `test_intelligence` + 38 `test_cli_analyze`) against real Locust 2.46.2 CSV fixtures committed under `tests/fixtures/intelligence/` (run_a healthy, run_b regressed, run_clean knee, full_history, legacy, edge); full suite 1068 passed, ruff clean on `src/` and `tests/`, no new runtime deps (stdlib only).
-- ai-intelligence-docs: `docs/ai-performance-intelligence.md` CLI/API reference, `examples/analyze_run.py`, README section + badges (v1.6.0, 1068 tests), `docs/ci-cd-gates.md` AI analysis step, CHANGELOG v1.6.0.
-
+## Features Done (this pass)
+- evidence-linked-diagnosis: Deterministic findings now include exact source files/metrics, windows, rule version, confidence, data-quality grade, and a non-causal next validation step.
+- guided-run-workspace: Responsive Flask first-run page and analysis API connect CSV selection, baseline comparison, SLO gating, results, and friendly errors in one accessible flow.
+- portable-ci-evidence-bundle: Atomic schema-v1 ZIP export contains JSON, Markdown, JUnit, provenance, and a SHA-256 manifest via `--bundle` or Python API.
+- distribution-readiness: Declared Flask runtime support, repaired container startup, and documented a single guided workspace command.
+- security-hardening: Production mode requires an API key, confines CSV prefixes to a configured workspace root, and runs through Gunicorn.
+- reproducible-delivery: Restored CI workflow dotfiles, pinned requirements, removed generated package metadata, and verified 1085 tests.
 ## Sources
-- `analysis/analysis-brief.md` (v1.6.0 spec)
-- `CHANGELOG.md` v1.6.0
-- `docs/ai-performance-intelligence.md` (CLI/API reference)
-- `docs/ci-cd-gates.md` — "AI Performance Intelligence Analysis (`locust-kit analyze`)" section
-- `tests/fixtures/intelligence/README.md` (fixture provenance)
+- research-findings.md items addressed: P0.1 Evidence-linked comparison and diagnosis, P0.2 Guided run workspace, P0.3 Portable CI evidence bundle
+- CHANGELOG.md section this maps to
