@@ -1,9 +1,12 @@
 """Shared fixtures for locust-performance-kit tests."""
 
+import os
 import sys
 from pathlib import Path
 
 import pytest
+
+os.environ.setdefault("LOCUST_SKIP_MONKEY_PATCH", "1")
 
 # Add src to path so templates can be imported
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))

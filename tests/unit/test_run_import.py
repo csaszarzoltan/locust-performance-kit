@@ -47,3 +47,62 @@ def test_rejects_duplicate_symlink_and_ratio(tmp_path):
 def test_discovery_grade_c_without_history(tmp_path):
  p=next(FIX.glob("*_stats.csv"));(tmp_path/"x_stats.csv").write_bytes(p.read_bytes())
  assert discover_candidates(tmp_path).candidates[0].quality_grade=="C"
+
+def test_preview_json_and_path_source_commit(tmp_path):
+    source = tmp_path / "source.zip"
+    source.write_bytes(archive().getvalue())
+    staging, preview = SafeRunImporter(tmp_path / "stage").extract(source, "path")
+    assert '"quality_grade"' in preview.to_json()
+    from locust_templates.run_import import commit_candidate
+    result = commit_candidate(staging, tmp_path / "store", "run1", preview.candidates[0])
+    assert Path(result["stats"]).name == "run_stats.csv"
+
+
+def test_size_member_empty_and_expansion_limits(tmp_path):
+    with pytest.raises(ImportValidationError) as ex:
+        SafeRunImporter(tmp_path, max_archive=1).extract(archive(), "large")
+    assert ex.value.code == "ARCHIVE_TOO_LARGE"
+    empty = io.BytesIO()
+    with zipfile.ZipFile(empty, "w"):
+        pass
+    empty.seek(0)
+    with pytest.raises(ImportValidationError) as ex:
+        SafeRunImporter(tmp_path).extract(empty, "empty")
+    assert ex.value.code == "ARCHIVE_EMPTY"
+    with pytest.raises(ImportValidationError) as ex:
+        SafeRunImporter(tmp_path, max_members=1).extract(archive(), "members")
+    assert ex.value.code == "ARCHIVE_TOO_MANY_MEMBERS"
+    with pytest.raises(ImportValidationError) as ex:
+        SafeRunImporter(tmp_path, max_uncompressed=1).extract(archive(), "expand")
+    assert ex.value.code == "ARCHIVE_EXPANSION_LIMIT"
+
+
+def test_invalid_control_header_encoding_and_history_timestamp(tmp_path):
+    with pytest.raises(ImportValidationError) as ex:
+        SafeRunImporter._safe_name("bad\x00name")
+    assert ex.value.code == "ARCHIVE_NAME_INVALID"
+    (tmp_path / "x_stats.csv").write_text("Wrong,Header\na,b\n")
+    with pytest.raises(ImportValidationError) as ex:
+        discover_candidates(tmp_path)
+    assert ex.value.code == "STATS_HEADER_INVALID"
+    (tmp_path / "x_stats.csv").write_bytes(b"\xff\xfe")
+    with pytest.raises(ImportValidationError) as ex:
+        discover_candidates(tmp_path)
+    assert ex.value.code in {"STATS_HEADER_INVALID", "STATS_ENCODING_INVALID"}
+    stats = next(FIX.glob("*_stats.csv"))
+    (tmp_path / "x_stats.csv").write_bytes(stats.read_bytes())
+    history = next(FIX.glob("*_stats_history.csv")).read_text().splitlines()
+    history[1] = history[1].replace("1700000000", "not-a-time")
+    (tmp_path / "x_stats_history.csv").write_text("\n".join(history))
+    assert discover_candidates(tmp_path).candidates[0].quality_grade in {"A", "B"}
+
+
+def test_commit_detects_changed_evidence_and_cleans_destination(tmp_path):
+    from locust_templates.run_import import commit_candidate
+    staging, preview = SafeRunImporter(tmp_path / "stage").extract(archive(), "changed")
+    candidate = preview.candidates[0]
+    (staging / candidate.files[0].path).write_text("changed")
+    with pytest.raises(ImportValidationError) as ex:
+        commit_candidate(staging, tmp_path / "store", "run2", candidate)
+    assert ex.value.code == "EVIDENCE_CHANGED"
+    assert not (tmp_path / "store" / "run2").exists()

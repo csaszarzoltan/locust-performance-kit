@@ -842,3 +842,7 @@ Measured SLO violations still return exit code 2 after artifacts are written. Th
 ### Baseline comparison and accessible timeline (v1.7.0)
 
 Run Detail now shows baseline compatibility, endpoint-level current/baseline values, absolute and percentage deltas, explicit Added/Missing states, and aligned p95/RPS history. The inline SVG has a text description and a keyboard-accessible data-table fallback. Decision JSON includes `baseline.compatibility`, `endpoint_comparison`, and `timeline`; identical hash inputs remain reproducible.
+
+### RC validation pipeline
+
+`.github/workflows/rc-validation.yml` defines separate Linux jobs for full regression/type/lint, isolated domain coverage, Chromium/axe screenshots, and wheel/Docker validation. Pure modules are now importable without initializing Locust/gevent; the documented public API remains available lazily. Run `bash scripts/coverage-gate.sh` locally to enforce 90% changed-scope and 95% critical-module coverage.

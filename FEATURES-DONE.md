@@ -1,11 +1,13 @@
 # Features Done
 
 ## Features Done (this pass)
-- US-004 baseline comparison: endpoint current/baseline values, absolute and percentage deltas, Added/Missing semantics, overlap compatibility, aligned p95/RPS timeline, accessible SVG, and keyboard-readable data table.
-- v1.7.0 release candidate hardening: focused Pyright scope, wheel installation smoke, startup health, deterministic artifact verification, and restored CI workflow contracts.
+- Gevent-free domain boundary: pure workspace/import/artifact modules load without Locust or gevent while the existing public package API resolves lazily and remains compatible.
+- Measured coverage gates: changed pure-module scope reaches 98 percent and critical import/artifact scope reaches 98 percent with enforceable CI/local thresholds.
+- RC validation automation: independent Linux jobs cover regression/type/lint, coverage, Playwright plus axe/screenshots, and wheel/Docker validation.
+- Browser contract: responsive, import-recovery, sample, comparison/timeline, accessibility, screenshot, and download flows are executable when Chromium is available.
 
 ## Sources
-- research-findings.md items addressed: Explainable Baseline Compare; Data Quality and Confidence Guardrails; modern accessible run-detail expectations.
-- implementation-plan.md requirements addressed: B2, B3, B4, B5, B8, B9, B10 and US-004 acceptance criteria.
-- user stories covered: US-004 PASS; prior US-001, US-002, US-003, US-005, US-006 remain regression-green.
-- CHANGELOG.md section this maps to: [1.7.0-rc1] - 2026-08-09.
+- research-findings.md items addressed: trustworthy local run-to-decision workflow and modern accessible UX expectations.
+- implementation-plan.md requirements addressed: US-001 through US-006 verification, TDD coverage gates, UI verification, packaging/startup, and Definition of Done automation.
+- user stories covered: US-001, US-002, US-003, US-004, US-005, US-006.
+- CHANGELOG.md section this maps to: [1.7.0-rc1-validation] - 2026-08-09.

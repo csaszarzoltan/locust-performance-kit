@@ -1,0 +1,54 @@
+name: RC Validation
+'on':
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev --extra otel
+      - run: uv run pytest -q
+      - run: uv run ruff check .
+      - run: uv run pyright
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev
+      - run: uv run pytest -q tests/unit/test_run_import.py tests/unit/test_decision_artifact.py tests/unit/test_comparison_view.py tests/unit/test_workspace_runs.py -p pytest_cov --cov=locust_templates.run_import --cov=locust_templates.decision_artifact --cov=locust_templates.comparison_view --cov=locust_templates.analysis_service --cov-report=term-missing --cov-fail-under=90
+      - run: uv run coverage report --include='*/run_import.py,*/decision_artifact.py' --fail-under=95
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: uv sync --extra dev --extra otel
+      - run: uv run playwright install --with-deps chromium
+      - run: npm install --no-save axe-core
+      - run: LOCUST_WORKSPACE_DB=/tmp/e2e.db LOCUST_WORKSPACE_STORAGE_ROOT=/tmp/e2e-storage uv run locust-workspace --host 127.0.0.1 --port 8080 > /tmp/workspace.log 2>&1 &
+      - run: for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/healthz && exit 0; sleep 1; done; exit 1
+      - run: LPK_RUN_E2E=1 uv run pytest -q tests/e2e --browser chromium
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: {name: rc-ui-screenshots, path: screenshots/}
+  package-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --extra dev
+      - run: uv build
+      - run: uv venv /tmp/clean && uv pip install --python /tmp/clean/bin/python dist/*.whl
+      - run: /tmp/clean/bin/locust-kit analyze --version | grep '1.7.0'
+      - run: docker build -t locust-performance-kit:1.7.0-rc1 .
+      - run: docker run -d --name lpk-rc -p 8081:8080 -e LOCUST_WORKSPACE_DB=/data/workspace.db -e LOCUST_WORKSPACE_STORAGE_ROOT=/data/storage locust-performance-kit:1.7.0-rc1
+      - run: for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8081/healthz && exit 0; sleep 1; done; docker logs lpk-rc; exit 1
+      - run: docker rm -f lpk-rc

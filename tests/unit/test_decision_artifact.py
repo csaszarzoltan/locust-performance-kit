@@ -47,3 +47,22 @@ def test_us004_added_missing_never_fabricate_percentage():
     for item in decision["endpoint_comparison"]:
         if item["state"] != "COMMON":
             assert all(metric["percent_delta"] is None for metric in item["metrics"].values())
+
+def test_decision_edge_paths(tmp_path):
+    import math
+
+    import pytest
+
+    from locust_templates.decision_artifact import (
+     baseline_compatibility,
+     build_timeline,
+    )
+    run = report()
+    run.profile.baseline = None
+    assert baseline_compatibility(run.profile)["status"] == "NO_BASELINE"
+    assert build_timeline(run.profile)["aligned"] is False
+    run.profile.endpoints[0].p95 = math.inf
+    with pytest.raises(ValueError, match="non-finite"):
+        build_decision(run)
+    with pytest.raises(IsADirectoryError):
+        atomic_write(tmp_path, b"x")

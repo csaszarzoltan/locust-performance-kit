@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0-rc1-validation] - 2026-08-09
+
+### Validated
+
+- Added lazy public API resolution so pure import, decision, comparison, and workspace modules no longer initialize Locust/gevent while `from locust_templates import APIUser` remains compatible.
+- Added four-job Linux RC pipeline for regression, measured coverage, Chromium/axe screenshots, wheel installation, and Docker health.
+- Measured 98% coverage across changed pure modules and 98% across critical import/artifact modules; added reproducible local coverage gate.
+- Added Playwright flows for responsive Inbox, sample, ambiguous and traversal imports, comparison/timeline, axe, screenshots, and downloads.
+
 ## [1.7.0-rc1] - 2026-08-09
 
 ### Stabilized
