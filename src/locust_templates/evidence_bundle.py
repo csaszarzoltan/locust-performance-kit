@@ -47,7 +47,7 @@ def create_evidence_bundle(
         "schema_version": 1,
         "generated_at": generated,
         "tool": "locust-performance-kit",
-        "tool_version": "1.6.0",
+        "tool_version": "1.7.0",
         "csv_prefix": csv_prefix,
         "baseline": baseline_prefix,
         "slos": slos or {},

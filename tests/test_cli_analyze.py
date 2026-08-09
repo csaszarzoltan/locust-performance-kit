@@ -1,4 +1,4 @@
-"""Pre-development TDD suite for locust-kit analyze CLI (v1.6.0).
+"""Pre-development TDD suite for locust-kit analyze CLI (v1.7.0).
 
 Interface tests (parser structure, flags, pyproject entry point) PASS
 immediately against the stub's ``_build_parser``. Behavioral tests (exit codes
@@ -48,7 +48,7 @@ class TestCLIInterface:
     def test_module_version(self):
         from locust_templates import cli_analyze
 
-        assert cli_analyze.__version__ == "1.6.0"
+        assert cli_analyze.__version__ == "1.7.0"
 
     def test_build_parser_returns_argument_parser(self):
         parser = _build_parser()
@@ -90,12 +90,12 @@ class TestCLIInterface:
         with pytest.raises(SystemExit) as excinfo:
             _build_parser().parse_args(["analyze", "--version"])
         assert getattr(excinfo.value, "code", None) == 0
-        assert "locust-kit 1.6.0" in capsys.readouterr().out
+        assert "locust-kit 1.7.0" in capsys.readouterr().out
 
     def test_pyproject_entry_point_and_version(self):
         with open(REPO_ROOT / "pyproject.toml", "rb") as f:
             pyproject = tomllib.load(f)
-        assert pyproject["project"]["version"] == "1.6.0"
+        assert pyproject["project"]["version"] == "1.7.0"
         assert pyproject["project"]["scripts"]["locust-kit"] == "locust_templates.cli_analyze:main"
 
 
@@ -167,7 +167,7 @@ class TestCLIExitCodesBehavior:
             pytest.skip("cli_analyze.main not implemented yet — RED phase")
         except SystemExit as excinfo:
             assert getattr(excinfo, "code", None) == 0
-            assert "locust-kit 1.6.0" in capsys.readouterr().out
+            assert "locust-kit 1.7.0" in capsys.readouterr().out
             return
         assert rc == 0
 

@@ -10,3 +10,7 @@ locust-kit analyze --csv results --baseline baseline --slo p95=500 \
 ```
 
 Exit codes remain 0 for successful/advisory analysis, 1 for input or output errors, and 2 for measured SLO violations. Requested decision files are written before returning 2.
+
+## Compatibility, endpoint deltas, and timeline
+
+Compatibility reports common, added, and missing endpoints plus overlap percentage. Common endpoints include current, baseline, absolute delta, and percentage delta for p95, p99, error rate, RPS, request count, and failure count. A zero baseline or one-sided endpoint produces no fabricated percentage. Aggregate histories align by elapsed seconds from each run start. Run Detail renders an accessible p95 SVG plus the complete p95/RPS data table.

@@ -1,6 +1,6 @@
 [project]
 name = "locust-performance-kit"
-version = "1.6.0"
+version = "1.7.0"
 description = "Production-ready Locust load testing templates for enterprise performance testing"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -83,3 +83,11 @@ markers = [
 
 [tool.setuptools.package-data]
 locust_templates = ["static/*.css", "static/*.js", "sample/*.json", "sample/**/*.csv"]
+
+[tool.pyright]
+include = ["src/locust_templates/run_import.py", "src/locust_templates/decision_artifact.py", "src/locust_templates/comparison_view.py", "src/locust_templates/analysis_service.py", "src/locust_templates/workspace_views.py", "src/locust_templates/workspace_cli.py"]
+extraPaths = ["src"]
+pythonVersion = "3.9"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false

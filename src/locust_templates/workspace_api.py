@@ -199,8 +199,8 @@ def create_workspace_blueprint() -> Blueprint:
     @bp.get("/healthz")
     def health() -> tuple[Response,int] | Response:
         try:
-            _store().list_analysis_runs(); return jsonify({"status":"ok","database":"ok","version":"1.6.0"})
-        except Exception: return jsonify({"status":"unavailable","database":"error","version":"1.6.0"}),503
+            _store().list_analysis_runs(); return jsonify({"status":"ok","database":"ok","version":"1.7.0"})
+        except Exception: return jsonify({"status":"unavailable","database":"error","version":"1.7.0"}),503
 
     @bp.get("/workspace/start")
     def guided_start() -> Response:

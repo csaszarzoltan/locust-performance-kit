@@ -71,10 +71,12 @@ class SafeRunImporter:
         return clean
 
     def extract(self, source: str | Path | BinaryIO, session_id: str) -> tuple[Path, ImportPreview]:
-        if hasattr(source, "seek"):
-            source.seek(0,2); size=source.tell(); source.seek(0)
+        if isinstance(source, (str, Path)):
+            size = Path(source).stat().st_size
         else:
-            size=Path(source).stat().st_size
+            source.seek(0, 2)
+            size = source.tell()
+            source.seek(0)
         if size>self.max_archive: raise ImportValidationError("ARCHIVE_TOO_LARGE", "Archive exceeds the configured size limit")
         target=(self.root/session_id).resolve()
         if target.exists(): shutil.rmtree(target)

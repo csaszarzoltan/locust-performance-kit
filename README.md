@@ -838,3 +838,7 @@ locust-kit analyze --csv results --slo p95=500 \
 ```
 
 Measured SLO violations still return exit code 2 after artifacts are written. The workspace does not start Locust, upload evidence, provide multi-user authentication, or call an LLM from browser workflows.
+
+### Baseline comparison and accessible timeline (v1.7.0)
+
+Run Detail now shows baseline compatibility, endpoint-level current/baseline values, absolute and percentage deltas, explicit Added/Missing states, and aligned p95/RPS history. The inline SVG has a text description and a keyboard-accessible data-table fallback. Decision JSON includes `baseline.compatibility`, `endpoint_comparison`, and `timeline`; identical hash inputs remain reproducible.

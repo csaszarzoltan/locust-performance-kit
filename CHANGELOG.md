@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0-rc1] - 2026-08-09
+
+### Stabilized
+
+- Completed US-004 with endpoint-level current/baseline/absolute/percentage deltas, Added/Missing semantics, compatibility summary, aligned p95/RPS timeline, accessible SVG, and data-table fallback.
+- Set runtime/package version to 1.7.0 and added focused Pyright configuration for the new application modules.
+- Verified 1.7.0 wheel installation, workspace health, CLI exit 2 artifact generation, and independent decision-hash validation.
+
 ## [1.7.0] - 2026-08-09
 
 ### Added

@@ -1,13 +1,11 @@
 # Features Done
 
 ## Features Done (this pass)
-- Run Inbox and Smart Import: local ZIP validation, automatic Locust evidence mapping, quality grading, persistent history, filtering, and recovery states.
-- Explainable decision workspace: PASS/FAIL/ADVISORY detail with source-linked findings, hashes, responsive UI, and downloadable decision artifacts.
-- Baseline lifecycle: eligibility checks, one active baseline per environment, immutable superseded history, and audit records.
-- CI decision artifacts: canonical `performance-decision/v1` JSON and deterministic Markdown from workspace and CLI.
+- US-004 baseline comparison: endpoint current/baseline values, absolute and percentage deltas, Added/Missing semantics, overlap compatibility, aligned p95/RPS timeline, accessible SVG, and keyboard-readable data table.
+- v1.7.0 release candidate hardening: focused Pyright scope, wheel installation smoke, startup health, deterministic artifact verification, and restored CI workflow contracts.
 
 ## Sources
-- research-findings.md items addressed: Run Inbox + Smart Import; Explainable Baseline Compare; Policy-to-CI Decision Artifact; Data Quality and Confidence Guardrails.
-- implementation-plan.md requirements addressed: A1-A8, B1-B3, B5-B10; responsive/accessibility design system; additive persistence and CLI compatibility.
-- user stories covered: US-001, US-002, US-003, US-004, US-005, US-006.
-- CHANGELOG.md section this maps to: [1.7.0] - 2026-08-09.
+- research-findings.md items addressed: Explainable Baseline Compare; Data Quality and Confidence Guardrails; modern accessible run-detail expectations.
+- implementation-plan.md requirements addressed: B2, B3, B4, B5, B8, B9, B10 and US-004 acceptance criteria.
+- user stories covered: US-004 PASS; prior US-001, US-002, US-003, US-005, US-006 remain regression-green.
+- CHANGELOG.md section this maps to: [1.7.0-rc1] - 2026-08-09.

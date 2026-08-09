@@ -1,4 +1,4 @@
-"""Pre-development TDD suite for locust_templates.intelligence (v1.6.0).
+"""Pre-development TDD suite for locust_templates.intelligence (v1.7.0).
 
 Interface tests (imports, dataclass fields, signatures, defaults, type hints)
 PASS immediately against the stub module. Behavioral tests FAIL with
@@ -210,7 +210,7 @@ class TestModuleInterface:
         assert intelligence_mod is not None
 
     def test_version(self):
-        assert intelligence_mod.__version__ == "1.6.0"
+        assert intelligence_mod.__version__ == "1.7.0"
 
     def test_all_export_list_matches_public_api(self):
         assert set(intelligence_mod.__all__) == PUBLIC_API

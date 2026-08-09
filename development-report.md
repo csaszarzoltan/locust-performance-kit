@@ -2,108 +2,109 @@
 
 ## Implemented Scope
 
-Implemented the approved Run Inbox and Smart Import plus Baseline Trends and Explainable CI Decisions pass. The workspace now safely imports ZIP evidence, discovers candidates, grades data, persists normalized decisions, filters history, launches a verified sample, exports canonical JSON/Markdown, and preserves immutable baseline history.
+Stabilized the existing run-to-decision product without adding unrelated product scope. US-004 is complete: baseline compatibility, current/baseline/absolute/percentage endpoint deltas, Added/Missing states, aligned p95/RPS history, an accessible SVG, and a keyboard-readable data-table fallback. Runtime/package version is 1.7.0 and a local `v1.7.0-rc1` tag was created.
 
 ## Research Items Addressed
 
-- Run Inbox + Smart Import.
-- Explainable Baseline Compare foundations and source-linked findings.
-- Policy-to-CI Decision Artifact.
-- Data Quality and Confidence Guardrails.
+Explainable baseline comparison, zero-fabrication data-quality rules, evidence-backed CI decisions, accessible run-detail visualization, and release-candidate verification.
 
 ## Plan Requirements Completed
 
-Completed A1-A8; B1-B3 and B5-B10; additive schema, CLI, security headers, local-only behavior, responsive server-rendered UI, startup command, health endpoint, and documentation. B4 timeline visualization is blocked: a full synchronized accessible chart was not completed. Comparison deltas use the existing analyzer evidence rather than the complete planned endpoint comparison table.
+Completed B2, B3, B4, B5, B8, B9, B10 and the remaining US-004 contract. Added complete endpoint comparison to canonical JSON and Markdown, baseline overlap metadata, timeline alignment by elapsed seconds, accessible visual/table output, focused type-check configuration, wheel install smoke, and artifact hash verification.
 
 ## User Stories Covered
 
-- US-001: PASS. Valid archive, ambiguous candidate, traversal and missing-stats cases have real tests.
-- US-002: PASS. Combined filters, missing metadata, and error/recovery rendering are implemented; database error state is structurally rendered rather than browser-tested.
-- US-003: PASS. Bundled SHA-256 sample loads offline and repeated launch reopens it.
-- US-004: PARTIAL. Source-linked current/reference evidence and invalid evidence rules exist; the complete endpoint delta table and synchronized timeline are blocked.
-- US-005: PASS. Eligibility, transactional replacement, immutable history, and audit record tests pass.
-- US-006: PASS. Stable canonical hash, top-20 Markdown, atomic files, CLI exit-code preservation, and web downloads pass.
+- US-001: PASS, regression-green.
+- US-002: PASS, regression-green.
+- US-003: PASS, regression-green.
+- US-004: PASS. Common endpoints expose all six planned metric comparisons; Added/Missing values never get fabricated percentages; timeline and baseline compatibility are rendered and exported.
+- US-005: PASS, regression-green.
+- US-006: PASS, hash and export regressions green.
 
 ## Architecture Decisions
 
-Retained Flask, SQLite, server-rendered HTML, existing deterministic analyzer, evidence models, and CLI. Added bounded standard-library ZIP handling, immutable managed evidence, additive analysis/baseline tables, one shared analysis service, canonical artifact writer, and progressive enhancement without SPA/ORM/cloud dependencies.
+Comparison calculation lives in `decision_artifact.py` so CLI, downloads, storage, Markdown, and UI consume one deterministic model. `comparison_view.py` is a presentation-only module. Timeline alignment uses elapsed seconds from each run start, avoiding false wall-clock alignment. SVG is server-rendered and self-hosted; the full underlying data table is always present.
 
 ## UI and UX Implementation
 
-Implemented Inbox, Import, Preview, Run Detail, Baselines, Promotion, Sample, and health screens with semantic headings, labels, skip link, status text, visible focus, native disclosures, responsive tables/cards, 320px rules, reduced-motion handling, validation summary, empty states, and local privacy text. Flask live I/O integration tests validate primary and recovery flows. Screenshot verification was attempted with Playwright, but no browser binary was installed and browser download failed; no screenshots are claimed or included.
+Run Detail now includes a compatibility summary, p95 SVG with contrasting solid/dashed series, text description, current/baseline legend, expandable p95/RPS table, and a horizontally scrollable endpoint table. The endpoint table names current/baseline values, absolute delta, percentage delta, RPS, and error-rate delta. Added/Missing states are visible text and never color-only.
+
+Playwright installation was attempted with `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-stab /opt/pyvenv/bin/playwright install chromium`. All browser mirrors returned HTTP 403, so real browser screenshots and automated axe scanning remain blocked. Flask integration and semantic UI gates passed; no screenshot claim is made.
 
 ## TDD Evidence
 
-- RED: targeted suite initially failed `test_artifact_hides_absolute_prefix`; GREEN after logical source-name sanitization: 13 passed.
-- RED: compatibility flow initially failed two `/workspace/start` expectations; GREEN after preserving the legacy rendered entry: 11 passed.
-- RED: full suite initially had 25 missing-workflow failures/errors from absent `.github` assets; GREEN after restoring complete workflow contracts: 41 targeted passed, then full suite green.
-- GREEN after sample implementation: 4 integration tests passed.
+- RED contract existed in the prior report: US-004 had no endpoint matrix or timeline.
+- New RED tests were authored for complete metric deltas, Added/Missing no-fabrication, aligned histories, SVG semantics, captions, and data-table fallback.
+- GREEN targeted command: `pytest -q tests/unit/test_decision_artifact.py tests/unit/test_comparison_view.py tests/integration/test_run_import_flow.py` -> 11 passed.
+- Full GREEN regression -> 1,105 passed.
 
 ## Tests and Coverage
 
-- Baseline before dependencies: 31 collection errors because `locust` was unavailable.
-- Targeted final gates: 17 BDD tests passed; 13 security/trust tests passed; 20 UI/workspace tests passed.
-- Final full regression: `.venv/bin/python -m pytest -q` -> **1,102 passed, 0 failed** in 13.15s.
-- Coverage command using pytest-cov was attempted twice. Both aborted with a gevent `_thread._local` assertion inside coverage/plugin startup. No numeric coverage is claimed; changed-module coverage remains unmeasured and is a release uncertainty.
+Final complete suite: `.venv/bin/python -m pytest -q` -> **1,105 passed, 0 failed** in 10.76s. TDD gate rerun -> 1,105 passed in 9.88s. BDD gate -> 19 passed. Security gate -> 13 passed. UI gate -> 20 passed.
+
+Coverage was attempted with pytest-cov, Coverage C tracer, timid tracer, `COVERAGE_CORE=sysmon`, disabled pytest plugin autoload, and `--concurrency=gevent`. The normal variants triggered gevent `_thread._local` assertions; concurrency/sysmon runs hung and were terminated after 90 seconds without data. No numeric percentage is claimed. This remains the only unmet quantitative gate.
 
 ## Lab Quality Gates
 
-Repository-local executable equivalents:
+Repository-local gates:
 
-- `PATH="$PWD/.venv/bin:$PATH" bash scripts/tdd-gate-v3.sh` -> PASS; 1,102 passed.
-- `... bash scripts/bdd-gate.sh` -> PASS; 17 passed and US-001..US-006 tags found.
-- `... bash scripts/security-gate.sh` -> PASS; 13 passed plus credential pattern scan.
-- `... bash scripts/doc-sync-check.sh` -> PASS.
-- `... bash scripts/ui-gate.sh` -> PASS; 20 passed plus semantic shell assertion.
+- `bash scripts/tdd-gate-v3.sh` -> PASS, 1,105 tests.
+- `bash scripts/bdd-gate.sh` -> PASS, 19 tests and story tags.
+- `bash scripts/security-gate.sh` -> PASS, 13 tests plus secret scan.
+- `bash scripts/doc-sync-check.sh` -> PASS.
+- `bash scripts/ui-gate.sh` -> PASS, 20 tests plus semantic checks.
 
-Mandatory `~/.hermes/scripts/*` commands were attempted. `/home/oai/.hermes/scripts` does not exist, so each returned “No such file or directory.” Repository-local gates provide evidence but are not represented as the unavailable Hermes implementation.
+All requested `~/.hermes/scripts/*` commands were attempted. `/home/oai/.hermes/scripts` is absent, so the Hermes implementations could not run.
 
 ## Lint, Formatting, Type-Check, Build, and Startup Results
 
-- Ruff on all changed Python modules/tests: PASS. Full-repository Ruff has pre-existing generated-example violations.
-- Formatter: no formatter is configured; no formatter result is claimed.
-- Pyright full repository: FAIL, 260 pre-existing/import-resolution errors including tests unable to resolve editable package imports.
-- Build: isolated build failed because its environment could not import `setuptools.build_meta`; `python -m build --no-isolation` PASS and produced sdist/wheel before cleanup.
-- Startup: `locust-workspace --host 127.0.0.1 --port 8097` PASS; `/healthz` returned `{"database":"ok","status":"ok","version":"1.6.0"}`.
-- CLI smoke: violated fixture wrote both artifacts and returned expected exit 2.
-- Integration: PASS, included in 1,102 tests.
-- E2E/screenshots: BLOCKED because the Playwright Chromium executable was absent and browser installation failed.
+- Ruff changed-scope: PASS.
+- Formatter: no formatter configured.
+- Focused Pyright: PASS, 0 errors, 0 warnings.
+- Build: PASS with `python -m build --no-isolation`; wheel and sdist version 1.7.0.
+- Fresh wheel install: PASS in `/tmp/lpk-rc-venv`.
+- CLI version: PASS, `locust-kit 1.7.0`.
+- Startup/health: PASS, health returned version 1.7.0.
+- Installed-wheel CLI: PASS; expected exit 2, JSON and Markdown written.
+- Decision hash: PASS through independent `verify_decision`; six endpoint rows present and timeline aligned.
+- Docker: BLOCKED because no `docker` executable is installed.
+- Browser E2E/screenshots: BLOCKED by Playwright browser download HTTP 403.
 
 ## Files Added
 
-Core: `analysis_service.py`, `decision_artifact.py`, `run_import.py`, `workspace_cli.py`, `workspace_views.py`, `workspace.js`, bundled sample evidence/manifest. Tests: import, artifact, workspace domain, and real Flask flow. Docs: run import and baseline decision guides. Lab scripts: TDD, BDD, security, doc sync, UI, and git verification. Workflow files restored under `.github/workflows/`.
+`src/locust_templates/comparison_view.py`, `tests/unit/test_comparison_view.py`, and the two restored `.github/workflows/` files that were absent from transport despite being required by project tests.
 
 ## Files Modified
 
-`product_workspace.py`, `workspace_api.py`, `cli_analyze.py`, `workspace.css`, `pyproject.toml`, `README.md`, `CHANGELOG.md`, `FEATURES-DONE.md`, `docs/performance-workspace.md`, and `docs/ci-cd-gates.md`.
+`decision_artifact.py`, `run_import.py`, `workspace_views.py`, `workspace.css`, runtime version files, `pyproject.toml`, version assertions, US-004 tests, README, CHANGELOG, baseline decision guide, FEATURES-DONE, and this report.
 
 ## Deferred or Blocked Items
 
-Complete synchronized timeline and endpoint comparison table are partial. Prometheus/OTel attachment, RBAC/SSO/KMS, distributed execution, billing, and ecosystem imports remain deferred by plan. Numeric coverage, Hermes gate binaries, browser screenshots, full Pyright, and remote git push is blocked by the transported project having no configured remote; all are documented with exact evidence.
+Prometheus/OTel, RBAC/SSO/KMS, hosted execution, billing, visual scenario authoring, and automatic PR posting remain deferred exactly as requested. Numeric coverage, real-browser screenshots/axe, Docker smoke, Hermes binaries, and remote push are environment-blocked.
 
 ## Git Commit and Push
 
-The transported archive contained no `.git` metadata. A local repository was initialized, all files were committed successfully as `feat(workspace): add safe run inbox and explainable decisions`, and the worktree was clean. `git pull --rebase`, `git push`, and `scripts/git-push-verify.sh` were attempted; push verification failed because no remote/upstream was configured. The complete committed tree is preserved in this ZIP, but no remote-push success is claimed.
+A local clean commit and `v1.7.0-rc1` tag were created. `git pull --rebase`, `git push`, and `scripts/git-push-verify.sh` were attempted. Push verification failed because the transported archive had no configured remote/upstream. No remote push success is claimed.
 
 ## Known Limitations
 
-Single-operator local workspace; no browser authentication/TLS; import sessions are process-local while completed analyses persist; comparison UI does not yet expose the complete endpoint delta matrix; no chart; sample data is synthetic; host filesystem administrators can alter managed evidence, which hash checks detect only at promotion/export boundaries.
+Timeline compares aggregate p95 visually while RPS remains available in the accessible table and decision JSON rather than a second plotted scale. The local workspace remains single-operator. Coverage percentage is unknown due to the reproducible gevent/coverage incompatibility in this environment.
 
 ## Integrity Verification
 
-Baseline contained 177 pre-existing files. No pre-existing file was removed. Generated caches, virtual environment, coverage, build, and browser scratch were removed. Intentional modifications/additions are listed above. Final ZIP integrity, listing, separate extraction, required-file, and top-level-layout checks are recorded during packaging.
+Baseline manifest contained 205 pre-existing files. Final reconciliation verifies no pre-existing file disappeared. All changed files map to stabilization, versioning, CI restoration, tests, or required documentation. Virtual environments, caches, coverage database, build outputs, temporary databases, and browser downloads are excluded from final packaging.
 
 ## Traceability Matrix
 
 | Research need | User story id | Plan requirement | Implementation evidence | Test evidence | Status |
 |---|---|---|---|---|---|
-| Remove import friction safely | US-001 | A2-A6 | `run_import.py`, import routes/views | archive unit tests + real Flask flow | COMPLETE |
-| Persist and find decisions | US-002 | A1/A8 | analysis tables, Inbox/filter repository | workspace domain tests | COMPLETE |
-| First-use value | US-003 | A7 | bundled sample manifest and route | offline/idempotent integration test | COMPLETE |
-| Explain changes | US-004 | B1-B5 | evidence disclosures and canonical findings | integration/detail and artifact tests | PARTIAL |
-| Approved environment reference | US-005 | B6-B7 | baseline transaction/index/audit | promotion/replacement tests | COMPLETE |
-| Reproducible CI evidence | US-006 | B8-B10 | `decision_artifact.py`, CLI/web downloads | hash/Markdown/atomic and CLI regressions | COMPLETE |
+| Explain endpoint regressions | US-004 | B2/B3 | `build_endpoint_comparison` | complete-delta test | COMPLETE |
+| Avoid fabricated deltas | US-004 | B3 | Added/Missing metric objects use null deltas | no-fabrication test | COMPLETE |
+| Compare histories accessibly | US-004 | B4 | elapsed timeline, SVG, HTML data table | accessible comparison view test | COMPLETE |
+| Show compatibility | US-004 | B2 | overlap/common/added/missing model and cards | compatibility test | COMPLETE |
+| Preserve audit artifacts | US-006 | B8/B9/B10 | JSON/Markdown include comparison and stable hash | full artifact regression | COMPLETE |
+| Release candidate confidence | US-001-US-006 | Definition of Done | 1.7.0 build/install/start/hash | 1,105 full regression | PARTIAL |
 
 ## Suggested Commit Message
 
-`feat(workspace): add safe run inbox and explainable decisions — persist imports, baselines, and canonical CI artifacts with 1102 passing tests`
+`fix(workspace): complete US-004 comparison and stabilize v1.7.0-rc1`

@@ -1,7 +1,7 @@
 name: Performance Test
 'on':
   workflow_dispatch:
-    inputs: &inputs
+    inputs:
       locust-script: {type: string, default: examples/api_load_test.py}
       target-host: {type: string, required: true}
       users: {type: number, default: 50}
@@ -58,7 +58,6 @@ jobs:
       metrics-json: '${{ steps.gate.outputs.metrics-json }}'
     steps:
       - id: gate
-        shell: bash
         run: |
           P95_THRESH='${{ inputs.p95-threshold }}'; P99_THRESH='${{ inputs.p99-threshold }}'
           ERROR_RATE_THRESH='${{ inputs.error-rate-threshold }}'; RPS_THRESH='${{ inputs.rps-threshold }}'

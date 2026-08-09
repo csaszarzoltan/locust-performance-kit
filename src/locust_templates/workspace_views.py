@@ -4,6 +4,8 @@ from __future__ import annotations
 import html
 from typing import Any
 
+from locust_templates.comparison_view import render_comparison
+
 
 def e(v: Any)->str:return html.escape(str(v or ""),quote=True)
 def shell(title:str, body:str, *, focus=False)->str:
@@ -31,9 +33,10 @@ def detail(run:dict[str,Any])->str:
     d=run["report"]; findings=d.get("findings",[]); status=d["decision"]["status"]
     fhtml=''.join(f'<details><summary><span class="badge {e(x["severity"])}">{e(x["severity"].upper())}</span> {e(x["message"])}</summary><dl><dt>Rule</dt><dd>{e(x["rule_id"])} v{e(x["rule_version"])}</dd><dt>Confidence</dt><dd>{e(x["confidence"])}</dd><dt>Next check</dt><dd>{e(x["next_check"])}</dd></dl></details>' for x in findings) or '<p>No anomalies were detected.</p>'
     summary=d.get("summary",{}); cards=''.join(f'<article><small>{e(k.replace("_"," ").title())}</small><strong>{e(v)}</strong></article>' for k,v in list(summary.items())[:6])
+    comparison=render_comparison(d)
     eligible=status in {"PASS","ADVISORY"} and not run["sample"]
     promote=f'<a class="button" href="/workspace/baselines/promote?run_id={e(run["id"])}">Promote as baseline</a>' if eligible else '<p class="muted">Only verified PASS or explicitly overridden ADVISORY runs can be promoted.</p>'
-    body=f'''<p><a href="/workspace/runs">Runs</a> / {e(run["label"])}</p><div class="heading"><div><h1>{e(run["label"])}</h1><p>{e(run["environment"])} · {e(run["branch"])} · quality {e(run["quality_grade"])}</p></div><div class="actions"><a class="button primary" href="/workspace/runs/{e(run["id"])}/decision.json">Download decision JSON</a><a class="button" href="/workspace/runs/{e(run["id"])}/summary.md">Download Markdown</a></div></div><section class="decision {e(status.lower())}"><p>Measured decision</p><strong>{e(status)}</strong></section><section><h2>Run summary</h2><div class="metrics">{cards}</div></section><section><h2>Findings and evidence</h2>{fhtml}</section><section><h2>Provenance</h2><p>Decision hash <code>{e(d["hash"]["value"])}</code></p>{promote}</section>'''
+    body=f'''<p><a href="/workspace/runs">Runs</a> / {e(run["label"])}</p><div class="heading"><div><h1>{e(run["label"])}</h1><p>{e(run["environment"])} · {e(run["branch"])} · quality {e(run["quality_grade"])}</p></div><div class="actions"><a class="button primary" href="/workspace/runs/{e(run["id"])}/decision.json">Download decision JSON</a><a class="button" href="/workspace/runs/{e(run["id"])}/summary.md">Download Markdown</a></div></div><section class="decision {e(status.lower())}"><p>Measured decision</p><strong>{e(status)}</strong></section><section><h2>Run summary</h2><div class="metrics">{cards}</div></section>{comparison}<section><h2>Findings and evidence</h2>{fhtml}</section><section><h2>Provenance</h2><p>Decision hash <code>{e(d["hash"]["value"])}</code></p>{promote}</section>'''
     return shell(f"{status} · {run['label']}",body,focus=True)
 def baselines(rows:list[dict[str,Any]])->str:
     cards=''.join(f'<article><span class="badge {e(r["state"].lower())}">{e(r["state"])}</span><h2>{e(r["environment"])}</h2><p>{e(r["label"])}</p><a href="/workspace/runs/{e(r["run_id"])}">View run</a></article>' for r in rows) or '<section class="empty"><h2>No baselines yet</h2><p>Promote a verified passing run from Run Detail.</p><a href="/workspace/runs?decision=PASS">Find passing runs</a></section>'

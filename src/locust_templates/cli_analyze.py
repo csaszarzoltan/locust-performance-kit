@@ -28,7 +28,7 @@ from locust_templates.decision_artifact import atomic_write, build_decision, ren
 from locust_templates.evidence_bundle import create_evidence_bundle
 from locust_templates.intelligence import analyze_run
 
-__version__ = "1.6.0"
+__version__ = "1.7.0"
 
 _VALID_FORMATS = ("markdown", "json")
 _VALID_SLO_KEYS = ("p95", "p99", "error_rate")
