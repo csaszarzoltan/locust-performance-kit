@@ -20,6 +20,7 @@ dependencies = [
 locust-report = "locust_templates.cli:main"
 locust-gen = "locust_templates.cli_gen:main"
 locust-kit = "locust_templates.cli_analyze:main"
+locust-workspace = "locust_templates.workspace_cli:main"
 
 [project.optional-dependencies]
 grpc = [
@@ -56,6 +57,17 @@ select = ["E", "F", "UP", "B", "SIM", "I"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["E501"]
 "src/**" = ["E501"]
+"src/locust_templates/run_import.py" = ["E701", "E702"]
+"src/locust_templates/decision_artifact.py" = ["E701", "E702", "E731", "SIM105"]
+"src/locust_templates/analysis_service.py" = ["E701", "E702"]
+"src/locust_templates/workspace_views.py" = ["E701", "E702"]
+"src/locust_templates/workspace_api.py" = ["E701", "E702"]
+"src/locust_templates/workspace_cli.py" = ["E701", "E702"]
+"src/locust_templates/product_workspace.py" = ["E701", "E702"]
+"tests/unit/test_run_import.py" = ["E701", "E702"]
+"tests/unit/test_decision_artifact.py" = ["E701", "E702"]
+"tests/unit/test_workspace_runs.py" = ["E701", "E702"]
+"tests/integration/test_run_import_flow.py" = ["E701", "E702"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -70,4 +82,4 @@ markers = [
 ]
 
 [tool.setuptools.package-data]
-locust_templates = ["static/*.css"]
+locust_templates = ["static/*.css", "static/*.js", "sample/*.json", "sample/**/*.csv"]

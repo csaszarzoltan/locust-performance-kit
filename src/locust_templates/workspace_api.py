@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import hmac
+import json
 import os
+import secrets
+import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import Any
 
-from flask import Blueprint, Flask, Response, jsonify, request
+from flask import Blueprint, Flask, Response, jsonify, redirect, request
 
+from locust_templates.analysis_service import analyze_decision
+from locust_templates.decision_artifact import render_markdown
 from locust_templates.evidence import evidence_from_report
 from locust_templates.intelligence import analyze_run
 from locust_templates.product_workspace import (
@@ -16,6 +23,15 @@ from locust_templates.product_workspace import (
     VaultAccessDenied,
     render_workspace,
 )
+from locust_templates.run_import import (
+    ImportValidationError,
+    SafeRunImporter,
+    commit_candidate,
+)
+from locust_templates.workspace_views import baselines as baselines_view
+from locust_templates.workspace_views import detail as detail_view
+from locust_templates.workspace_views import import_form, inbox, promote_form
+from locust_templates.workspace_views import preview as preview_view
 
 
 def _workspace_prefix(value: str) -> str:
@@ -61,6 +77,9 @@ def _json() -> dict[str, Any]:
     return data
 
 
+_IMPORTS: dict[str, dict[str, Any]] = {}
+
+
 def create_workspace_blueprint() -> Blueprint:
     """Create versioned workspace API and server-rendered pages."""
     bp = Blueprint("performance_workspace", __name__)
@@ -71,9 +90,121 @@ def create_workspace_blueprint() -> Blueprint:
             return _error("AUTHENTICATION_REQUIRED", 401)
         return None
 
+    @bp.get("/")
+    def root() -> Response:
+        return redirect("/workspace/runs", code=302)
+
+    @bp.get("/workspace/runs")
+    def run_inbox() -> Response:
+        q={key:request.args.get(key,"") for key in ("q","environment","branch","decision","quality")}
+        rows=_store().list_analysis_runs(query=q["q"],environment=q["environment"],branch=q["branch"],decision=q["decision"],quality=q["quality"],missing_metadata=request.args.get("missing_metadata")=="1")
+        return Response(inbox(rows,q),mimetype="text/html")
+
+    @bp.get("/workspace/runs/import")
+    def run_import_form() -> Response:
+        return Response(import_form(),mimetype="text/html")
+
+    @bp.post("/workspace/runs/import/validate")
+    def run_import_validate() -> tuple[Response,int] | Response:
+        upload=request.files.get("archive")
+        if not upload: return Response(import_form("Select one ZIP archive."),status=422,mimetype="text/html")
+        session_id=secrets.token_urlsafe(18)
+        try:
+            staging_root=Path(os.getenv("LOCUST_WORKSPACE_STORAGE_ROOT","/tmp/locust-workspace"))/"staging"
+            staging, result=SafeRunImporter(staging_root).extract(upload.stream,session_id)
+            _IMPORTS[session_id]={"staging":str(staging),"preview":result,"created":time.time()}
+            return Response(preview_view(session_id,list(result.candidates)),mimetype="text/html")
+        except ImportValidationError as exc:
+            return Response(import_form(f"{exc.code}: {exc}"),status=422,mimetype="text/html")
+        except Exception:
+            return Response(import_form("ARCHIVE_INVALID: the file is not a valid ZIP."),status=422,mimetype="text/html")
+
+    @bp.post("/workspace/runs/import/commit")
+    def run_import_commit() -> tuple[Response,int] | Response:
+        sid=request.form.get("session_id",""); data=_IMPORTS.get(sid)
+        if not data or time.time()-data["created"]>1800: return Response(import_form("IMPORT_SESSION_EXPIRED: validate the file again."),status=409,mimetype="text/html")
+        try:
+            index=int(request.form.get("candidate","-1")); candidate=data["preview"].candidates[index]
+            label=request.form.get("label","").strip()
+            if not label or len(label)>120: raise ValueError("RUN_LABEL_INVALID")
+            p95=request.form.get("p95","").strip(); slos={"p95":float(p95)} if p95 else None
+            if p95 and not (0<float(p95)<=3600000): raise ValueError("SLO_INVALID")
+            run_id=f"analysis_{uuid.uuid4().hex}"
+            storage=Path(os.getenv("LOCUST_WORKSPACE_STORAGE_ROOT","/tmp/locust-workspace"))/"runs"
+            files=commit_candidate(data["staging"],storage,run_id,candidate)
+            prefix=str(Path(files["stats"]).with_name("run"))
+            hashes={x.role:x.sha256 for x in candidate.files}
+            report,decision=analyze_decision(prefix,slos=slos,label=label,environment=request.form.get("environment",""),branch=request.form.get("branch",""),input_hashes=hashes)
+            _store().save_analysis_run(run_id=run_id,label=label,environment=request.form.get("environment",""),branch=request.form.get("branch",""),decision=decision,slos=slos)
+            shutil.rmtree(data["staging"],ignore_errors=True); _IMPORTS.pop(sid,None)
+            return redirect(f"/workspace/runs/{run_id}",code=303)
+        except (ValueError,IndexError,ImportValidationError) as exc:
+            return Response(preview_view(sid,list(data["preview"].candidates),str(exc)),status=422,mimetype="text/html")
+
+    @bp.get("/workspace/runs/<run_id>")
+    def run_detail(run_id: str) -> Response | tuple[Response,int]:
+        try: return Response(detail_view(_store().analysis_run(run_id)),mimetype="text/html")
+        except KeyError: return _error("RUN_NOT_FOUND",404)
+
+    @bp.get("/workspace/runs/<run_id>/decision.json")
+    def decision_json(run_id: str) -> Response | tuple[Response,int]:
+        try:
+            payload=json.dumps(_store().analysis_run(run_id)["report"],indent=2,sort_keys=True).encode()
+            return Response(payload,mimetype="application/json",headers={"Content-Disposition":f'attachment; filename="{run_id}-decision.json"',"Cache-Control":"no-store"})
+        except KeyError: return _error("RUN_NOT_FOUND",404)
+
+    @bp.get("/workspace/runs/<run_id>/summary.md")
+    def decision_markdown(run_id: str) -> Response | tuple[Response,int]:
+        try:
+            payload=render_markdown(_store().analysis_run(run_id)["report"])
+            return Response(payload,mimetype="text/markdown",headers={"Content-Disposition":f'attachment; filename="{run_id}-summary.md"',"Cache-Control":"no-store"})
+        except KeyError: return _error("RUN_NOT_FOUND",404)
+
+    @bp.get("/workspace/baselines")
+    def baseline_list() -> Response:
+        return Response(baselines_view(_store().list_baselines(request.args.get("environment",""))),mimetype="text/html")
+
+    @bp.route("/workspace/baselines/promote",methods=["GET","POST"])
+    def baseline_promote() -> Response | tuple[Response,int]:
+        run_id=request.values.get("run_id","")
+        try: run=_store().analysis_run(run_id)
+        except KeyError: return _error("RUN_NOT_FOUND",404)
+        if request.method=="GET": return Response(promote_form(run),mimetype="text/html")
+        try:
+            _store().promote_baseline(run_id,request.form.get("environment",""),request.form.get("label",""),request.form.get("reason",""),allow_advisory=request.form.get("allow_advisory")=="1")
+            return redirect("/workspace/baselines",code=303)
+        except ValueError as exc: return Response(promote_form(run,str(exc)),status=422,mimetype="text/html")
+
+    @bp.route("/workspace/sample", methods=["GET", "POST"])
+    def sample_info() -> Response:
+        from locust_templates.workspace_views import shell
+        sample_root=Path(__file__).with_name("sample")
+        if request.method == "GET":
+            body="<h1>Try a sample decision</h1><p>The bundled synthetic baseline and regressed run demonstrate an explainable failure. No network call is made.</p><form method='post'><button class='primary'>Load sample</button> <a class='button' href='/workspace/runs'>Back to Runs</a></form>"
+            return Response(shell("Try sample",body),mimetype="text/html")
+        try:
+            import hashlib
+            manifest=json.loads((sample_root/"manifest.json").read_text())
+            for rel,digest in manifest["files"].items():
+                if hashlib.sha256((sample_root/rel).read_bytes()).hexdigest()!=digest: raise ValueError("SAMPLE_ASSET_INVALID")
+            existing=[x for x in _store().list_analysis_runs(query="Sample: regressed") if x["sample"]]
+            if existing: return redirect(f"/workspace/runs/{existing[0]['id']}",code=303)
+            run_id=f"sample_{uuid.uuid4().hex}"
+            _,decision=analyze_decision(str(sample_root/"run_b/run_b"),baseline_prefix=str(sample_root/"run_a/run_a"),slos={"p95":500},label="Sample: regressed checkout API",environment="sample",branch="demo")
+            _store().save_analysis_run(run_id=run_id,label="Sample: regressed checkout API",environment="sample",branch="demo",decision=decision,slos={"p95":500},sample=True)
+            return redirect(f"/workspace/runs/{run_id}",code=303)
+        except Exception as exc:
+            return Response(shell("Sample unavailable",f"<h1>Sample unavailable</h1><div class='alert danger'>SAMPLE_ASSET_INVALID: {type(exc).__name__}. Reinstall the package.</div>"),status=500,mimetype="text/html")
+
+    @bp.get("/healthz")
+    def health() -> tuple[Response,int] | Response:
+        try:
+            _store().list_analysis_runs(); return jsonify({"status":"ok","database":"ok","version":"1.6.0"})
+        except Exception: return jsonify({"status":"unavailable","database":"error","version":"1.6.0"}),503
+
     @bp.get("/workspace/start")
     def guided_start() -> Response:
-        """Render the responsive first-run analysis workspace."""
+        """Render the legacy guided entry point for compatibility."""
         return Response("""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Locust Performance Workspace</title>
 <link rel="stylesheet" href="/assets/workspace.css"><style>
@@ -184,6 +315,13 @@ const form=document.querySelector('#analysis-form'),status=document.querySelecto
     @bp.errorhandler(VaultAccessDenied)
     def denied(exc: VaultAccessDenied) -> tuple[Response, int]:
         return _error(str(exc), 403)
+
+    @bp.after_request
+    def secure_headers(response: Response) -> Response:
+        response.headers.setdefault("X-Content-Type-Options","nosniff")
+        response.headers.setdefault("Referrer-Policy","no-referrer")
+        response.headers.setdefault("Content-Security-Policy","default-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'")
+        return response
 
     return bp
 

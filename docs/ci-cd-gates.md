@@ -282,3 +282,7 @@ Gate passed: False
 
 See `examples/gate_evaluation.py` for a complete runnable example that
 simulates both a passing and a failing quality gate.
+
+## Provider-neutral decision artifacts
+
+Use `locust-kit analyze --decision-json decision.json --decision-markdown summary.md`. Archive both files even when the command returns 2. Verify `hash.value` by serializing all top-level keys except `hash` with sorted keys and compact separators, then computing SHA-256. The tool does not post to a pull request or external service.

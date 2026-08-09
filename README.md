@@ -817,3 +817,24 @@ pyright
 python -m compileall -q src tests examples
 uv build
 ```
+
+## Run Inbox and Explainable Decisions
+
+The local workspace now turns a Locust result archive into a persisted, source-linked decision:
+
+1. Start `locust-workspace --database workspace.db --storage-root .workspace-data`.
+2. Open `http://127.0.0.1:8080/workspace/runs`.
+3. Choose **Import run**, upload a ZIP containing one or more Locust `*_stats.csv` families, validate the detected candidate, add optional metadata/SLOs, and analyze.
+4. Review PASS, FAIL, or ADVISORY status, quality grade, findings, provenance, and exact next checks.
+5. Download `performance-decision/v1` JSON or deterministic Markdown. Eligible passing runs can be promoted as immutable environment baselines.
+
+Archives are processed locally. The importer rejects traversal, symlinks, encryption, duplicate paths, excessive members, expansion bombs, invalid stats, and changed evidence. The default limits are 100 MiB compressed, 500 MiB expanded, 2,000 members, and 100:1 per-member expansion ratio.
+
+CLI automation can create the same artifact shape:
+
+```bash
+locust-kit analyze --csv results --slo p95=500 \
+  --decision-json decision.json --decision-markdown summary.md
+```
+
+Measured SLO violations still return exit code 2 after artifacts are written. The workspace does not start Locust, upload evidence, provide multi-user authentication, or call an LLM from browser workflows.

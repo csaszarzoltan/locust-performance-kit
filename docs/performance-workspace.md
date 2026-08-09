@@ -27,3 +27,7 @@ Tables are created additively with `CREATE TABLE IF NOT EXISTS`. Scenario export
 ## UI states
 
 Every workspace includes empty, current, partial/recovery, and error-oriented guidance. Navigation is keyboard accessible, focus is visible, status is announced through `aria-live`, mobile navigation scrolls horizontally, and the primary action becomes sticky on narrow screens.
+
+## Run Decision Workspace
+
+The supported entry point is `locust-workspace`. It binds to `127.0.0.1` by default and uses `LOCUST_WORKSPACE_DB` plus `LOCUST_WORKSPACE_STORAGE_ROOT`. Runs, baselines, scenarios, policies, capacity, and vault form the navigation. Imported evidence stays local; browser analysis never enables optional LLM enrichment. Back up the SQLite database and managed storage together. This release remains a local/single-operator product and is not a substitute for SSO, RBAC, TLS, or a production KMS.

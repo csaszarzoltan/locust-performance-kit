@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-08-09
+
+### Added
+
+- Local Run Inbox with safe ZIP validation, candidate discovery, quality grading, persisted decisions, filtering, sample onboarding, and responsive recovery states.
+- Immutable environment baseline promotion and history.
+- Canonical `performance-decision/v1` JSON and deterministic Markdown exports in the workspace and `locust-kit analyze`.
+- `locust-workspace` launcher, health endpoint, security headers, real-I/O import tests, and complete performance CI workflow assets.
+
+### Tests
+
+- 1,102 tests pass, including archive attacks, persistence, real import flow, sample idempotency, decision hashing, CLI regressions, and existing functionality.
+
 ## [1.6.0] - 2026-08-04
 
 ### Added

@@ -1,0 +1,2 @@
+"use strict";
+addEventListener("DOMContentLoaded",()=>{const main=document.querySelector("main[tabindex='-1']"); if(main) main.focus(); const error=document.querySelector("[role='alert'][tabindex='-1']"); if(error) error.focus(); document.querySelectorAll("form").forEach(f=>f.addEventListener("submit",()=>{const b=f.querySelector("button[type='submit'],button:not([type])");if(b){b.disabled=true;b.textContent=b.textContent.includes("Validate")?"Validating…":"Working…";}}));});

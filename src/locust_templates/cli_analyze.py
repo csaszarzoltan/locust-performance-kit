@@ -24,6 +24,7 @@ import json
 import sys
 from pathlib import Path
 
+from locust_templates.decision_artifact import atomic_write, build_decision, render_markdown
 from locust_templates.evidence_bundle import create_evidence_bundle
 from locust_templates.intelligence import analyze_run
 
@@ -61,10 +62,12 @@ def _build_parser() -> argparse.ArgumentParser:
         "--output", default="-",
         help="Output file path, or '-' for stdout (default: -)",
     )
-    analyze.add_argument(
-        "--bundle", default=None, metavar="PATH",
-        help="Write a schema-v1 portable evidence ZIP alongside the report",
-    )
+    analyze.add_argument("--bundle", default=None, metavar="PATH", help="Write a schema-v1 portable evidence ZIP alongside the report")
+    analyze.add_argument("--decision-json", default=None, metavar="PATH", help="Write canonical performance-decision/v1 JSON")
+    analyze.add_argument("--decision-markdown", default=None, metavar="PATH", help="Write deterministic decision Markdown")
+    analyze.add_argument("--run-label", default=None)
+    analyze.add_argument("--environment", default=None)
+    analyze.add_argument("--branch", default=None)
     analyze.add_argument(
         "--llm", action="store_true", default=False,
         help="Enable OpenAI-compatible LLM enrichment (opt-in; clean statistical fallback)",
@@ -121,6 +124,17 @@ def main(argv: list[str] | None = None) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+
+    if args.decision_json or args.decision_markdown:
+        try:
+            decision=build_decision(report,run_label=args.run_label,environment=args.environment,branch=args.branch)
+            if args.decision_json:
+                atomic_write(args.decision_json,json.dumps(decision,indent=2,sort_keys=True).encode())
+            if args.decision_markdown:
+                atomic_write(args.decision_markdown,render_markdown(decision).encode())
+        except (OSError,ValueError) as exc:
+            print(f"error: cannot write decision artifact: {exc}",file=sys.stderr)
+            return 1
 
     if args.bundle:
         try:

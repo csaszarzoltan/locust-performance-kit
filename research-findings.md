@@ -2,404 +2,510 @@
 
 ## Executive Summary
 
-Locust Performance Kit is a mature, Python-first companion product for Locust that bundles reusable test templates, multi-protocol users, OpenAPI script generation, reporting, baselines, CI gates, observability assets, a server-rendered performance workspace, and a deterministic “AI Performance Intelligence” analyzer. Verified behavior is spread across 34 Python modules and 73 test/fixture files; the public package targets Python 3.9+, ships three CLIs (`locust-report`, `locust-gen`, `locust-kit`), and is versioned 1.6.0 (`pyproject.toml`; `src/locust_templates/__init__.py`; `src/locust_templates/cli*.py`).
+Locust Performance Kit is a Python-first, local-first performance-engineering toolkit that extends Locust from load generation into test creation, run analysis, CI gating, evidence packaging, and a six-workflow Flask workspace. The strongest market opportunity is not another load generator. It is a **trustworthy run-to-decision layer for Locust teams**: upload or select a run, compare it with a baseline, understand why it failed, and export a reproducible decision artifact without operating Grafana/Timescale or sending test data to a commercial SaaS.
 
-The strongest market opportunity is not another load generator. Locust itself is established, extensible, and free, while k6, Gatling, BlazeMeter, and LoadFocus increasingly monetize the workflow around test creation, cloud execution, collaboration, historical comparison, and actionable analysis [S1][S4][S7][S8]. This project should become the **local-first performance engineering control plane for Python/Locust teams**: easy scenario creation, trustworthy run comparison, evidence-linked diagnostics, and portable CI artifacts without forcing test data into a SaaS.
+Demand evidence converges on three jobs: (1) making reports and observations is harder than generating load, (2) teams want history, comparisons, and observability correlation without infrastructure assembly, and (3) CI decisions must be explainable and reproducible. Locust itself documents CSV export but delegates hosted analysis to Azure Load Testing; Locust community answers acknowledge that the built-in UI cannot slice custom context and point users toward custom storage or a hosted product. Commercial competitors prove willingness to pay for collaboration, advanced reporting, distributed execution, and automatic insights, but price from usage-based $0.15/VUh through $89/month and $999/month tiers, leaving room for a local-first paid product or open-core team edition.
 
-Demand is validated by recurring signals: developers value code-first scripting, realistic flows, CI integration, and open-source economics; they struggle with generator capacity, setup complexity, fragmented plugins, interpreting results, maintaining authentication/test data, and converting findings into actions [S2][S3][S9][S10][S11][S12]. Commercial pricing also demonstrates willingness to pay for workflow and scale: Grafana Cloud k6 starts with a free allowance then usage pricing; Gatling lists €89 and €356 monthly annual-billed tiers; BlazeMeter lists $99/$499 effective monthly annual performance tiers; LoadFocus lists $79/$329/$499 monthly tiers and explicitly bundles AI analyses [S4][S5][S6][S7].
+The next development pass should concentrate on a coherent vertical slice:
 
-The next development pass should be deliberately narrow:
+1. **P0: Run Inbox and Guided Analysis Workspace**: discover/import CSV bundles, validate data quality, run analysis, and show source-linked findings in an accessible history view.
+2. **P0: Baseline Trends and Explainable CI Decisions**: compare runs, visualize deltas and saturation, manage SLO policies, and export stable PR/CI summaries.
+3. **P1: Observability Evidence Correlation**: attach Prometheus/OpenTelemetry evidence to findings through open standards, while preserving offline/local operation.
 
-1. **P0: Guided run workspace and first-run path** that connects existing scenario import/generation, execution configuration, artifacts, and analysis in one coherent responsive flow.
-2. **P0: Evidence-linked comparison and diagnosis** that shows current versus baseline, confidence, contributing endpoints/time windows, and recommended next checks, with deterministic analysis always visible.
-3. **P1: Portable CI evidence bundle** that exports a stable JSON/Markdown/JUnit package plus a PR-ready summary and provenance, making local and CI results reproducible.
-
-These priorities exploit capabilities already present, close the largest UX and trust gaps, and avoid competing with cloud vendors on raw distributed infrastructure.
+Do not prioritize cloud load generation, browser recording, or a broad no-code scenario builder in this pass. Those are expensive, crowded areas already served by k6, Gatling, OctoPerf, LoadForge, and Azure. The defensible wedge is Locust-native, deterministic, auditable analysis with near-zero setup.
 
 ## Project Understanding
 
-### What the project currently does
+### Verified purpose and users
 
-Verified from the source tree:
+The package describes itself as “Production-ready Locust load testing templates for enterprise performance testing” (`pyproject.toml`). Verified capabilities span:
 
-- Provides reusable HTTP, stress, spike, soak, web UI, gRPC, GraphQL, and WebSocket Locust users (`src/locust_templates/api_load.py:APIUser`; `stress.py:StressUser`; `spike.py:SpikeUser`; `soak.py:SoakUser`; `grpc.py:GrpcUser`; `graphql.py:GraphQLUser`; `websocket.py:WebSocketUser`).
-- Parses Locust CSV output and renders HTML, JSON, Markdown, and JUnit reports (`report_data.py:ReportData.from_csv`; `exporters.py:HTMLExporter`, `JSONExporter`, `MarkdownExporter`, `JUnitXMLExporter`; `cli.py:main`).
-- Saves and compares named baselines (`baseline.py:PerformanceBaseline`).
-- Correlates request chains and cascade failures (`correlator.py:RequestCorrelator`).
-- Provides live metrics and rule-based alerts (`live_dashboard.py:LiveDashboard`; `alerts.py:AlertEngine`).
-- Parses OpenAPI/Swagger documents and generates Locust scripts (`openapi_parser.py:parse_spec`; `locust_generator.py:generate_locust_script`; `cli_gen.py`).
-- Parses run history, detects anomalies/bottlenecks, projects capacity, checks SLOs, creates deterministic insights, and optionally calls an OpenAI-compatible endpoint (`intelligence.py:RunProfile`, `AnomalyDetector`, `BottleneckDetector`, `CapacityProjector`, `InsightGenerator`, `LLMInsightProvider`, `analyze_run`; `cli_analyze.py`).
-- Includes a Flask/SQLite performance engineering workspace with scenario, recovery, diagnostics, policy, test-data vault, estimate, API, and server-rendered workspace concepts (`product_workspace.py:PerformanceWorkspace`; `workspace_api.py:create_workspace_blueprint`; `render_workspace`).
-- Supplies Grafana dashboards, GitHub Actions guidance/workflow assets, Docker/Railway deployment files, examples, and extensive documentation (`grafana/dashboards/`; `.github/workflows/perf-test.yml`; `docs/`; `examples/`).
+- reusable Locust user templates and load shapes (`src/locust_templates/api_load.py`, `stress.py`, `spike.py`, `soak.py`, `shapes.py`);
+- authentication, multi-protocol support, and OpenAPI generation (`auth.py`, `grpc.py`, `graphql.py`, `websocket.py`, `openapi_parser.py`, `locust_generator.py`);
+- report export, baselines, alerts, correlation, and AI-labelled deterministic intelligence (`report_data.py`, `exporters.py`, `baseline.py`, `alerts.py`, `correlator.py`, `intelligence.py`);
+- CLI entry points `locust-report`, `locust-gen`, and `locust-kit` (`pyproject.toml [project.scripts]`);
+- an evidence and trust layer (`evidence.py`, `evidence_bundle.py`);
+- a Flask “performance engineering workspace” with scenarios, runs, diagnostics, policies, vault, and capacity workflows (`product_workspace.py`, `workspace_api.py`).
 
-### Target users and primary use cases
+Primary verified user groups are Python developers, QA/performance engineers, SRE/platform teams, and CI owners already using Locust. A secondary inferred segment is small engineering teams that want SaaS-like analysis and governance while keeping test evidence local.
 
-**Verified positioning:** “Production-ready Locust load testing templates for enterprise performance testing” (`pyproject.toml`). README use cases cover API load testing, stress/spike/soak tests, CI/CD integration, baselines, reporting, notifications, observability, and a performance engineering workspace (`README.md`, especially “Use Cases” and “Performance Engineering Workspace”).
+### Architecture and stack
 
-**Likely core users, inferred from the code and market:**
+- Python 3.9+ package using setuptools (`pyproject.toml`).
+- Locust, Flask, requests, PyYAML, OpenAPI validation, Gunicorn; optional gRPC, OpenTelemetry, and WebSocket dependencies.
+- SQLite persistence for workspace domain records (`PerformanceWorkspace.__init__` in `product_workspace.py`).
+- Server-rendered HTML plus inline JavaScript and packaged CSS (`render_workspace`, `guided_start`; `static/workspace.css`).
+- Deterministic statistical analysis and optional OpenAI-compatible enrichment (`intelligence.py`).
+- Docker/Railway deployment surface (`Dockerfile`, `railway.toml`, `Procfile`).
+- Large pytest suite with unit, integration, visual, trust-workflow, and real Locust-shaped CSV fixtures (`tests/`).
 
-1. Python backend developers who want realistic tests without adopting JavaScript/Scala tooling.
-2. QA and performance engineers standardizing Locust across teams.
-3. DevOps/SRE teams adding performance gates and artifacts to CI.
-4. Security-conscious or regulated teams preferring local/self-hosted analysis.
-5. Small teams that cannot justify $79–$649 monthly cloud plans but need better workflow than raw Locust CSVs [S4][S5][S6][S7].
+### Existing UI and principal flow
 
-### Architecture and technology stack
+The most complete current user flow is `/workspace/start` in `workspace_api.py`: enter current CSV prefix, optional baseline, and a p95 SLO; submit to `/api/v1/analysis`; receive findings with severity, confidence, data-quality grade, source path, and next check. Six additional workspace pages are rendered from `_PAGES` in `product_workspace.py`, covering scenarios, runs, diagnostics, policies, vault, and capacity.
 
-- Python package with `src/` layout; Python >=3.9; setuptools build (`pyproject.toml`).
-- Core dependencies: Locust, Requests, python-dotenv, PyYAML, and openapi-spec-validator. Optional gRPC, OpenTelemetry, and WebSocket groups (`pyproject.toml`).
-- Dataclass-heavy domain and report models; argparse CLIs; standard-library statistical analysis and HTTP for the optional LLM (`intelligence.py`).
-- Flask blueprint and SQLite-backed workspace service (`workspace_api.py`; `product_workspace.py`). Flask is imported by workspace code but is not declared in the package dependencies, creating an installability risk for that feature.
-- Server-rendered HTML and self-contained report output; Grafana JSON dashboards; GitHub Actions YAML.
-- Test suite organized into unit, integration, visual, CLI/intelligence tests, and static real-Locust-shaped fixture CSVs (`tests/`).
-
-### Existing UI and principal user flows
-
-There are three partially separate experiences:
-
-1. **Locust native web UI** to configure and run tests, inherited from Locust.
-2. **Command-line workflow**: generate/import scenario, run Locust with CSV, then call `locust-report` or `locust-kit analyze` and inspect artifacts (`README.md`; `docs/getting-started.md`; `docs/ai-performance-intelligence.md`).
-3. **Performance workspace**: server-rendered Flask pages/API around scenarios, recovery, diagnostics, policies, secrets, and estimates (`product_workspace.py:render_workspace`; `workspace_api.py`).
-
-The principal end-to-end flow is not yet unified. A user must understand which surface owns authoring, execution, monitoring, analysis, and retention. This is the central product gap.
+This is a credible functional prototype, but the first-run form assumes server-visible file paths rather than user-friendly import/discovery. Results are inserted into the same page rather than stored in a navigable run history. The main navigation describes broad workflows, but the product does not yet present one polished end-to-end “run to decision” experience.
 
 ### Current strengths
 
-- Broad functional coverage for a small open-source package.
-- Strong Python/Locust fit and extensibility, matching community praise for Locust’s ability to model essentially anything Python can do [S9][S10].
-- Deterministic analysis that does not require an LLM, a strong trust and privacy differentiator as developers rank privacy, pricing, and better alternatives above “lack of AI” when rejecting tools [S19].
-- Multi-format outputs and clear CI exit-code semantics.
-- Real Locust-shaped fixtures and an unusually large test surface for parser/analysis behavior.
-- Local-first operation and no mandatory vendor account.
-- Existing observability, baseline, and workspace primitives create leverage for a coherent product without a rewrite.
+1. **Local-first trust story**: analysis can remain on the user’s machine and findings link back to source evidence (`workspace_api.py`, `evidence.py`).
+2. **Unusually broad Locust coverage**: generation, execution helpers, reports, baselines, intelligence, CI gates, protocols, auth, and workspace APIs exist in one package.
+3. **Deterministic fallback**: statistical insights do not depend on an LLM (`intelligence.py`). This is valuable for CI reproducibility.
+4. **Real test fixtures and extensive tests**: the repository contains Locust 2.46.2-shaped fixtures and over a thousand tests according to `CHANGELOG.md`.
+5. **Accessible intent**: focus styles, `aria-live`, responsive CSS, and explicit empty/error guidance appear in the workspace code and docs.
+6. **Extensible evidence model**: source-linked findings and evidence bundles can become the product’s differentiation rather than a reporting afterthought.
 
-### Maturity assessment
+### Constraints for planning
 
-The repository is feature-rich and test-oriented, but product maturity is uneven. Release documentation claims 1,068 passing tests (`CHANGELOG.md`), while this research environment could not execute the suite because Locust and Ruff were not installed. The collection failure was environmental (`ModuleNotFoundError: locust`), not evidence of test failures. Distribution readiness is weakened by inconsistent setup instructions (`docs/getting-started.md` says `pip install -r requirements.txt`, while the package is defined in `pyproject.toml`), a malformed Docker command (`Dockerfile` has `EXPOSE $` and a broken shell expression), and an undeclared Flask dependency for workspace modules.
+- Preserve Python 3.9+ and Locust-native workflows.
+- Do not require a hosted control plane for core value.
+- Keep deterministic analysis as the source of truth; LLM output stays optional and clearly separated.
+- Maintain existing CLIs and public APIs.
+- Treat the local SQLite cipher as development-only; production deployment requires a real KMS and authentication boundary (`docs/performance-workspace.md`).
+- Avoid adding operational dependencies unless they unlock an optional integration. Grafana/Prometheus/OTel should be adapters, not prerequisites.
 
 ## Current-State Gap Analysis
 
-| Area | What exists | Gap | Evidence / implication |
-|---|---|---|---|
-| Product coherence | Three CLIs, examples, native Locust UI, separate Flask workspace | No single happy path from spec/scenario to run to diagnosis | New users must compose the product mentally; onboarding should unify existing assets before adding more engines. |
-| Authoring | OpenAPI parser/generator and templates | No guided preview/edit/validate workflow; generated path parameters and payloads still require user repair | k6 Studio and Gatling support capture/visual or no-code creation [S4][S8]. |
-| Execution | Locust commands, shapes, CI workflow | Workspace is not clearly wired to actual local/distributed run orchestration | Users cite local generator exhaustion and prefer cloud for large stress tests [S10]. Product should show generator saturation and remote-run adapters rather than promise cloud scale. |
-| Analysis | Strong deterministic analyzer, baselines, reports | Results are reports, not an evidence graph; recommendations do not visibly link to exact rows/time windows/telemetry | AI distrust is material: 46% distrust accuracy and 66% dislike “almost right” outputs [S19]. Explainability is table stakes. |
-| Historical collaboration | Named baselines, JSON artifacts, workspace data | No first-class project/run history, approvals, comments, ownership, or review workflow | Competitors sell collaboration, trends, and centralized results [S4][S8]. |
-| UX states | Workspace docs mention empty/current/partial/error states | No verified screenshots or end-to-end visual regression artifacts in the archive | The project’s own `AGENTS.md` asks for visual tests/screenshots, but current visual tests are structural. |
-| Accessibility | Workspace documentation claims keyboard/focus/ARIA behavior | No automated accessibility test dependency or audit | Add semantic/keyboard and contrast checks to acceptance criteria. |
-| Security | Vault abstraction, tenant checks, LLM key handling guidance | Local cipher explicitly not production KMS; auth boundary, CSRF, tenant identity, and rate limits are deployment responsibilities | `docs/performance-workspace.md` correctly states these limits; UI must expose deployment-security status. |
-| Packaging | PyPI-style package, Docker/Railway assets | Flask undeclared; Dockerfile malformed; README/install paths conflict | Fixing distribution is essential before marketing the workspace. |
-| Documentation | 20 docs files and long README | Duplication, contradictions, stale statements, and a static generated timestamp limitation | Documentation needs task-oriented consolidation and executable examples. |
-| Test execution | Large tests and fixtures | No lock-step bootstrap command visible; environment lacks declared dev setup here | Add `make verify` or equivalent and package/workspace extras. |
-| Monetization | None | No paid value boundary | Market indicates payment for collaboration, retention, distributed capacity, support, and analysis rather than basic local generation [S4][S5][S6][S7]. |
+| Area | Verified current state | Gap and consequence |
+|---|---|---|
+| First use | `/workspace/start` accepts a CSV prefix string | No file picker, ZIP import, auto-discovery, sample run, or recent runs. New users must understand Locust naming and server paths. |
+| Run history | SQLite stores conceptual runs/results, while analysis endpoint returns an immediate payload | No unified persisted analysis record linking input files, baseline, policy, findings, and exported evidence. |
+| Diagnostics UX | Findings include severity, confidence, source and next check | No charts or drill-down from run timeline to endpoint to raw rows; difficult to validate an automated conclusion visually. |
+| Baselines | CLI accepts prior prefix or stored baseline; `baseline.py` has named baselines | Baseline creation, promotion, environment assignment, comparison history, and stale-baseline warnings are not a cohesive UI workflow. |
+| CI governance | Exit codes and evidence bundles exist | No first-class PR summary/check-run contract, policy version display, waiver workflow in the guided path, or “why this gate changed” view. |
+| Observability | OTel examples and Grafana dashboards exist | No direct attachment of metric/log/trace snapshots to a finding. Users still operate a separate stack and correlate manually. |
+| Scenario studio | Domain/API supports protocol steps | Broad promise exceeds UI maturity. Competing no-code recorders are far ahead, creating expectation risk. |
+| Security | API key in production mode; path confinement | Single API key, no user identity/RBAC/CSRF/rate limit; local vault cipher explicitly not production grade. |
+| Packaging/distribution | PyPI-style package, Docker, Railway | No clear paid packaging, migration path, telemetry policy, or support boundary. |
+| Documentation | Extensive reference guides | Some docs contain inconsistencies or stale examples, and breadth makes the recommended golden path hard to find. |
+
+Maturity assessment: **late prototype / early product**. Core engines and tests are mature enough for real use, while the workspace and commercial product experience need consolidation.
 
 ## Target Users and Jobs to Be Done
 
-| Segment | Primary job | Success definition | Current fit |
+| Segment | Primary job | Current alternative | Buying trigger |
 |---|---|---|---|
-| Python backend developer | “Turn an API/spec/user flow into a realistic load test and know whether my change regressed performance.” | Working test in <15 minutes; CI gate; actionable diff | Strong primitives, fragmented flow |
-| QA/performance engineer | “Standardize scenarios, SLOs, test data, reports, and evidence across projects.” | Reusable policies, reviewable runs, repeatability | Good domain concepts, weak collaboration UI |
-| SRE/DevOps engineer | “Run repeatable tests in CI and connect regressions to service telemetry.” | Portable artifact, stable exit codes, links to metrics/traces | Good CI/report pieces, missing end-to-end correlation |
-| Engineering manager | “Understand release risk and capacity without reading raw CSVs.” | Concise, trustworthy, comparable decision summary | Analyzer helps; trust/provenance and history need work |
-| Regulated/self-hosted team | “Keep sensitive traffic models and results inside our boundary.” | No mandatory SaaS; auditable storage and access | Strong local-first direction; production security adapters incomplete |
-| Consultant/small agency | “Deliver branded, defensible performance findings at predictable cost.” | Shareable evidence bundle and reusable templates | Reports exist; project packaging/branding and client separation are incomplete |
+| Python developer or small QA team using Locust | “Tell me whether this run is safe and what changed.” | CSV/HTML inspection, spreadsheets, custom scripts | Repeated release gates, unexplained regressions, no dedicated performance engineer |
+| Performance engineer | “Preserve test history and find the bottleneck quickly.” | Grafana + Timescale/Prometheus, commercial cloud | Setup/maintenance burden, need for shareable evidence |
+| Platform/SRE team | “Make performance gates consistent across repositories.” | CI scripts, k6/Gatling cloud, Azure Load Testing | Governance, auditability, standardized SLOs and reports |
+| Regulated/security-sensitive team | “Analyze without uploading traffic, URLs, errors, or secrets.” | On-prem enterprise suite, custom internal tooling | Data residency, secrets, compliance evidence |
+| Engineering manager | “Understand release risk without reading raw percentiles.” | Screenshots and expert interpretation | Need for concise, defensible go/no-go decisions |
 
 ## Target-Market Pain Points
 
 | User problem | Segment | Recurrence observed | Evidence | Confidence | Implication |
 |---|---|---:|---|---|---|
-| Raw load-test output does not explain what broke or what to do next | Developers, QA, managers | Repeated across commercial positioning and analysis-focused products | Grafana Cloud Insights, Gatling AI analysis, LoadFocus AI explanations [S4][S7][S8] | HIGH | Make diagnosis evidence-linked and deterministic, not just narrative. |
-| Local generator capacity can become the bottleneck before the system under test | Developers/SRE | Direct practitioner report plus widespread cloud-scale positioning | Reddit practitioner; k6/Gatling/BlazeMeter cloud scale [S10][S4][S5][S8] | MEDIUM-HIGH | Add generator-health checks and pluggable remote execution, not a proprietary cloud in the next pass. |
-| Teams want realistic flows and code-level flexibility | Developers | Repeated community praise | Reddit QA and ExperiencedDevs; Locust official positioning [S9][S10][S1] | HIGH | Preserve Python-first test-as-code and expose code rather than hiding it. |
-| Locust users repeatedly rebuild basic integrations and data-management features | Performance engineers | Explicit ecosystem rationale, broad plugin catalog | locust-plugins and Awesome Locust [S12][S13][S14] | HIGH | Integrate via adapters and compatibility, avoid duplicating mature plugins. |
-| Authentication refresh and evolving tokens complicate long tests | API teams | Current Locust feature request; project already has auth abstractions | Locust issue #3437 [S11] | MEDIUM | Add request-time credential refresh hooks and secret health status. |
-| Downloaded or static reports need clearer behavior and richer analysis | QA/managers | Current upstream issue plus competitor investment | Locust issue #3407; Grafana/Gatling analysis pages [S11][S4][S8] | MEDIUM | Make reports self-describing, timestamped, provenance-rich, and linked to source artifacts. |
-| Users want pause/resume and operational control from a UI | Test operators | Current upstream feature request | Locust issue #3387 [S11] | MEDIUM | Workspace run control is valuable, but must reflect actual Locust capability and distributed state. |
-| Tool choice is constrained by pricing and privacy | Small teams, regulated teams | Broad developer survey plus pricing spread | Stack Overflow 2025; official vendor pricing [S19][S4][S5][S6][S7] | HIGH | Local-first free core with optional paid collaboration/support is credible. |
-| AI-generated conclusions are hard to trust | All accountable technical roles | Strong cross-developer survey signal | 46% distrust AI accuracy; 66% cite almost-right answers [S19] | HIGH | Always show formulas, source rows, confidence, and non-LLM fallback. |
-| Product setup and learning curves block adoption | New users | Repeated in reviews and tool comparisons | k6/Gatling/BlazeMeter review summaries and community discussions [S20][S21][S9] | MEDIUM | Optimize first-run success and progressive disclosure. |
+| Reporting and observations are harder than generating load | QA/performance engineers | Repeated across Reddit thread and analysis guides | Reddit “Performance testing tools” commenter: reporting/observations are “by far the hardest”; OneUptime states analysis is where value comes from. Accessed 2026-08-09. https://www.reddit.com/r/softwaretesting/comments/1c7q8l6/performance_testing_tools/ ; https://oneuptime.com/blog/post/2026-01-28-analyze-locust-test-results/view | HIGH | Lead with decision quality, not load generation. |
+| Locust UI cannot filter/slice custom context | Advanced Locust users | Direct Q&A plus ecosystem workaround | Stack Overflow answer says Locust UI does not support filtering/slicing by context and suggests custom storage or cloud. Accessed 2026-08-09. https://stackoverflow.com/questions/78877954/collect-and-chart-analyze-additional-metrics-with-locust | HIGH | Add endpoint/context drill-down and portable evidence schema. |
+| Historical comparison requires external infrastructure | Performance engineers | Repeated in Locust-plugins docs and third-party guides | Locust-plugins uses Postgres/Timescale + Grafana specifically to persist runs and track changes; BlazeMeter notes built-in metrics are not stored for future comparison. Accessed 2026-08-09. https://github.com/SvenskaSpel/locust-plugins/tree/master/locust_plugins/dashboards ; https://www.blazemeter.com/blog/locust-grafana | HIGH | Zero-ops local run history is a strong wedge. |
+| Tool choice must align with team language and CI stack | Developers/platform teams | Multiple Reddit comments | Reddit users recommend Locust for Python shops, k6 for Grafana/JS teams, and stress version control/integration. Accessed 2026-08-09. https://www.reddit.com/r/softwaretesting/comments/1c7q8l6/performance_testing_tools/ ; https://www.reddit.com/r/QualityAssurance/comments/12q5tkf/performance_testing_options/ | HIGH | Stay Python/Locust-native and integrate rather than replace. |
+| GUI tools lower entry friction, but complex workflows become hard | QA teams | Repeated comparison theme | Reddit discussion describes JMeter as easy to start but difficult for complex cases and XML/version-control heavy; k6 praised for code-first workflows. Accessed 2026-08-09. https://www.reddit.com/r/QualityAssurance/comments/12q5tkf/performance_testing_options/ | MEDIUM | Provide guided UI over versionable files, not a proprietary visual DSL. |
+| Advanced analysis and collaboration are paid features | Teams and enterprises | All major commercial competitors | k6 markets run comparison and automatic insights; Gatling sells reports, collaboration and distributed testing; OctoPerf and LoadForge package analytics by tier. Accessed 2026-08-09. https://grafana.com/products/cloud/performance-load-testing-k6/ ; https://gatling.io/pricing ; https://octoperf.com/pricing/saas-and-on-premise-load-testing/ ; https://loadforge.com/pricing | HIGH | There is willingness to pay for the “after the run” workflow. |
+| Self-hosted users accept setup to keep control, but resent operational tax | Platform/performance engineers | Ecosystem pattern | Locust-plugins explicitly requires Timescale/Grafana; hosted Locust documentation now points to Azure Load Testing for scalable execution, reporting and analysis. Accessed 2026-08-09. https://github.com/SvenskaSpel/locust-plugins/tree/master/locust_plugins/dashboards ; https://docs.locust.io/en/stable/hosted-load-testing.html | HIGH | Product should work from files/SQLite in minutes and optionally connect outward. |
 
 ## Competitor Weaknesses
 
 ### Grafana Cloud k6
 
-- Strong developer experience, test studio, browser/API testing, cloud scale, insights, trends, and observability correlation [S4].
-- Weakness/opportunity: paid usage beyond the free allowance, a $19 platform fee plus usage pricing, and a $25,000/year enterprise minimum; JavaScript-centric authoring; deep value is tied to Grafana Cloud [S4].
-- Exploitable gap: a Python-native, self-hosted evidence workflow with portable outputs and no mandatory observability-cloud commitment.
+- Strong developer experience, cloud scale, browser support, comparisons, Cloud Insights, and observability correlation.
+- Weaknesses: JavaScript-centered rather than Locust/Python-native; cloud collaboration/retention is usage-priced; users report limited GUI in OSS and cloud expense as drawbacks. Official pricing is $0.15/VUh for self-serve usage, Pro begins at $19/month plus usage, and Enterprise starts at a $25,000/year spend commitment. Sources: https://grafana.com/products/cloud/performance-load-testing-k6/ ; https://gck6-calculator.grafana.com/ ; https://grafana.com/pricing/ ; https://www.g2.com/products/k6/reviews (accessed 2026-08-09).
+- Exploitable gap: a Locust-native, offline analysis/history product with fixed-price team packaging and no telemetry upload.
 
 ### Gatling Enterprise
 
-- Strong asynchronous engine, multi-language SDKs, no-code/Postman options, AI analysis, campaigns, collaboration, distributed testing, and enterprise management [S8].
-- Weakness/opportunity: paid tiers and enterprise boundary; Community Edition lacks the centralized workflow; code-first SDKs still impose a language/tool learning curve [S5][S20].
-- Exploitable gap: simpler Python onboarding and local-first diagnostics for teams already invested in Locust.
+- Strong test-as-code, distributed execution, collaboration, advanced reporting, and growing AI-assisted workflow.
+- Weaknesses: reviews mention setup difficulty and UI comprehension; JVM/DSL heritage and platform migration cost are barriers for Python teams. Basic is €89/month annually for 60,000 VUs, one testing hour, one generator and two seats; Team is €356/month annually for 180,000 VUs, five hours, three generators and ten seats. Sources: https://gatling.io/pricing ; https://www.peerspot.com/products/gatling-enterprise-reviews ; https://docs.gatling.io/tutorials/faq/ (accessed 2026-08-09).
+- Exploitable gap: simpler local onboarding, transparent evidence, and Python-native customization.
 
-### BlazeMeter
+### OctoPerf
 
-- Strong breadth across performance, API, functional testing, service virtualization, test data, many open-source frameworks, and enterprise scale [S6][S22].
-- Weakness/opportunity: pricing jumps from $99 effective monthly annual to $499 for Pro, then custom enterprise; broad platform complexity can be excessive for small Python teams [S6][S21].
-- Exploitable gap: focused performance-engineering workflow, predictable deployment, and fewer concepts.
+- Strong codeless/JMeter workflow, SaaS and on-prem deployment, real-time reporting, and support.
+- Weaknesses: tightly oriented around JMeter; unlimited plan starts at $999/month, making it oversized for small teams; independent summaries note onboarding and workflow complexity. Official free tier allows 50 concurrent users for 20 minutes; pay-per-test starts at $99 for a 1,000-VU test. Sources: https://octoperf.com/pricing/saas-and-on-premise-load-testing/ ; https://www.capterra.com/p/145638/Octoperf/ (accessed 2026-08-09).
+- Exploitable gap: lightweight Locust workflows, code ownership, and affordable team analysis.
 
-### LoadFocus
+### LoadForge
 
-- Strong browser-based setup, multi-location cloud execution, JMeter/k6 support, monitoring, and bundled AI analyses [S7].
-- Weakness/opportunity: closed cloud platform, monthly analysis limits, data-retention tiers, and no Locust-native positioning [S7].
-- Exploitable gap: unlimited local deterministic analysis, source-level explainability, and Locust-specific workflows.
+- Directly adjacent because it supports custom Locustfiles, cloud load generation, AI analysis, and monitoring.
+- Weaknesses: cloud-centric, plan caps on test duration/retention/seats, and the entry plan offers limited regions and integrations. Official annual pricing is $67/month Basic, $242/month Essential, and $417/month Premium. Sources: https://loadforge.com/pricing ; https://www.g2.com/products/loadforge/reviews (accessed 2026-08-09).
+- Exploitable gap: self-hosted/local evidence, baseline governance, and no metered execution dependency.
 
-### Raw Locust plus community plugins
+### Azure Load Testing
 
-- Strongest flexibility, open-source economics, Python fit, distributed execution, and ecosystem [S1][S12][S14].
-- Weakness/opportunity: Locust core is intentionally bare bones; users assemble reporting, checks, test data, dashboards, protocols, and orchestration themselves [S12].
-- Exploitable gap: curated integration, coherent UX, opinionated defaults, and support without forking Locust.
+- Microsoft-managed large-scale execution, built-in reporting/analysis, Application Insights integration, and CI support; Locust documentation calls it the easiest hosted path. Source: https://docs.locust.io/en/stable/hosted-load-testing.html (accessed 2026-08-09).
+- Weaknesses: Azure account and cloud workflow required; broader platform complexity; less attractive to multi-cloud, local-only, or small teams.
+- Exploitable gap: cloud-neutral local analysis that can later attach Azure evidence.
 
 ## Competitor Comparison
 
-| Product | Primary audience / positioning | Pricing observed 2026 | Creation and onboarding | Analysis / collaboration | Main strength | Gap for this project |
-|---|---|---|---|---|---|---|
-| Grafana Cloud k6 | Developer-centric performance testing integrated with observability | Free 500 VUh; Pro from $0.15/VUh plus $19/month; Enterprise minimum $25k/year [S4] | k6 Studio, JS, browser and API flows | Cloud Insights, trends, observability correlation | Polished end-to-end cloud workflow | Python/Locust-native, local-first, privacy-conscious alternative |
-| Gatling Enterprise | Continuous performance intelligence for teams and enterprises | Basic €89/month, Team €356/month annual billed, Enterprise custom [S5] | Code, no-code, Postman, multiple SDKs | AI analysis, campaigns, dashboards, collaboration | High-scale engine and team workflow | Simpler Python learning curve, self-hosted lightweight workflow |
-| BlazeMeter | Broad enterprise continuous testing across many frameworks | Performance Basic $99/month annual, Pro $499/month annual, enterprise custom [S6] | Upload/import across 20+ frameworks | Real-time analytics, CI, enterprise management | Breadth, scale, service virtualization | Focused and affordable Locust workflow |
-| LoadFocus | Accessible cloud load testing/monitoring with AI explanations | $79/$329/$499 monthly; free/starter options; AI quotas [S7] | Browser configuration, JMeter/k6 upload | AI analysis, baseline comparison on higher tiers | Simple cloud launch and explanation | Unlimited local analysis and source-linked trust |
-| Raw Locust ecosystem | Python test-as-code and extensibility | Free/open source [S1] | Python code, web UI, plugins | Basic web UI/CSV; assemble extras | Flexibility and community | Coherent product experience and maintained integrations |
+| Product | Core audience | Entry pricing observed | Best at | Repeated weakness/gap | Opportunity for this project |
+|---|---|---:|---|---|---|
+| Grafana Cloud k6 | Dev/SRE teams, Grafana users | Free; Pro $19/mo + usage; $0.15/VUh; Enterprise $25k/yr commit | Cloud scale, observability, browser + protocol, automatic insights | OSS has less GUI/history; cloud cost and JS ecosystem | Local Locust history and evidence, fixed-price/team option |
+| Gatling Enterprise | Performance/DevOps teams | €89/mo Basic; €356/mo Team annual billing | Mature reports, distributed testing, collaboration | Setup/UI learning, JVM-centric | Python-native guided workflow |
+| OctoPerf | JMeter-heavy QA/enterprise | Free; $99 per test; unlimited from $999/mo | Codeless JMeter, support, on-prem | Cost and complexity for small teams | Focused, lower-cost Locust analysis |
+| LoadForge | DevOps and Locust users wanting cloud execution | $67/$242/$417 per month annual | Managed Locust scale, AI analysis, monitoring | Cloud/plan caps, retention and seat limits | Offline/unmetered analytics and policy evidence |
+| Azure Load Testing | Azure engineering organizations | Usage-based, region/service dependent; no simple universal figure used here | Managed scale and App Insights | Azure dependency and platform overhead | Neutral analyzer with optional Azure adapter |
+| Locust + locust-plugins | Experienced self-hosters | OSS infrastructure cost | Full custom control, detailed Grafana history | Timescale/Grafana setup and maintenance | Same decision value with SQLite/file-first setup |
 
 ## Validated Demand Signals
 
-| Signal | Observation | Strength | Product interpretation |
-|---|---|---|---|
-| Locust community scale | Official GitHub shows roughly 28k stars and 3.2k forks; Locust positions itself as scalable Python load testing [S1][S11] | HIGH | Large addressable open-source installed base, though stars are not paying users. |
-| Python flexibility | Practitioners describe Locust as highly customizable and good for realistic scenarios/CI [S9][S10] | HIGH | Keep code-first Python at the center. |
-| Cloud scale demand | Practitioner reports local machine exhaustion; all major paid products emphasize distributed/global load [S10][S4][S8][S22] | HIGH | Remote execution adapters and load-generator diagnostics matter. |
-| Result-analysis demand | In the archived k6 feature-request repo, result analysis was the largest issue label group (30 of 74 issues) [S15] | MEDIUM-HIGH | Analysis and history are recurring needs, not a novelty. |
-| Plugin fragmentation | locust-plugins explicitly exists because basic functionality is repeatedly reinvented [S12] | HIGH | Curate and compose ecosystem capabilities. |
-| AI adoption with distrust | 84% use/plan AI tools, but 46% distrust accuracy and lack of AI ranks low as a purchase rejection reason [S19] | HIGH | “Trustworthy automation” beats “AI-first” branding. |
-| Willingness to pay | Multiple vendors sustain tiers from ~$79 to ~$649 monthly and enterprise contracts [S4][S5][S6][S7] | HIGH | Buyers pay for scale, retention, team workflow, and support. |
-| Shift-left and CI | Vendor positioning and market reports consistently emphasize CI/SLO gating [S4][S8][S16][S17] | MEDIUM-HIGH | PR-ready, deterministic gates should be a first-class workflow. |
-| Market growth | Published estimates vary sharply: QYResearch estimates $961M in 2024 to $1.32B by 2031 (4.7% CAGR), while TrendX estimates $2.25B in 2025 to $9.09B by 2034 (16.8%) [S16][S17] | LOW-MEDIUM | Direction is positive, but do not use a single TAM/CAGR in investor claims. Definitions differ materially. |
+1. **Analysis is the expensive cognitive step**: independent guidance and practitioner discussion agree that interpreting percentiles, throughput, errors, and bottlenecks is the real value after a run. Confidence: HIGH. Sources: OneUptime (2026-01-28) and Reddit practitioner thread, accessed 2026-08-09.
+2. **Persisted history and comparison are not optional for mature teams**: Locust-plugins built a complete Timescale/Grafana replacement for the Locust reporting UI, including old-run discovery and trend tracking. Confidence: HIGH. Source: locust-plugins GitHub, accessed 2026-08-09.
+3. **Custom-context analysis is unmet in the default Locust UI**: a maintainer answer explicitly says slicing/filtering context is unsupported. Confidence: HIGH. Source: Stack Overflow, 2024-08-16.
+4. **Commercial products monetize analysis, history, and collaboration**: all four direct commercial comparators gate these capabilities in paid tiers. Confidence: HIGH. Official pricing/product pages accessed 2026-08-09.
+5. **Python alignment is a real selection criterion**: community advice repeatedly recommends Locust when the organization is Python-heavy. Confidence: MEDIUM-HIGH. Reddit threads accessed 2026-08-09.
+6. **Local and private execution has durable value**: Locust’s ecosystem remains large, while hosted guidance is separate and optional. The main Locust repository showed roughly 28,000 GitHub stars in the search result, and Locust-plugins remains active with a June 2026 release. Confidence: MEDIUM. Sources: https://github.com/locustio/locust/issues ; https://pypi.org/project/locust-plugins/ (accessed 2026-08-09).
 
 ## Market and Pricing Evidence
 
-### Market direction
+### Direction and adoption
 
-The reliable conclusion is directional, not a precise TAM: performance testing is moving toward continuous CI execution, cloud/distributed load, observability correlation, automated interpretation, and easier scenario creation [S4][S8][S16]. Two market studies disagree by multiples on both base size and growth, illustrating weak category boundaries and proprietary methodologies [S16][S17]. Therefore, the planning phase should not anchor strategy to a single market-size number.
+The category is moving toward code-first tests, CI gating, cloud-distributed execution, browser/protocol convergence, observability correlation, run comparison, and automated insights. Grafana k6 and Gatling both market automatic issue surfacing and “what changed” reporting; BrowserStack’s 2026 category review weights CI/CD, reporting/observability, scalability, and maintainability heavily. Sources: https://grafana.com/products/cloud/performance-load-testing-k6/ ; https://gatling.io/pricing ; https://www.browserstack.com/guide/performance-testing-tools (accessed 2026-08-09).
 
-### Search-interest and adoption proxies
+No reliable, category-specific TAM/CAGR figure was found that cleanly separates load testing from the much broader software-testing market. This report therefore does **not** provide a TAM, CAGR, or revenue forecast.
 
-No defensible Google Trends time series was available in this research environment. Better observable proxies are:
+### Buying and monetization patterns
 
-- Locust’s large GitHub footprint and very low current open-issue count [S1][S11].
-- Active locust-plugins releases, 669 stars, 380 dependents, and a broad integration catalog [S12].
-- Commercial vendors adding studio/no-code creation, AI analysis, trends, observability, and global load zones [S4][S7][S8].
-- Community discussions that repeatedly compare Locust, k6, Gatling, JMeter, and cloud options based on language, scale, price, and CI fit [S9][S10].
+- **Usage-based**: Grafana Cloud k6 bills primarily in VUh at a published calculator rate of $0.15/VUh; browser users carry different multipliers. This aligns cost with scale but makes repeated regression runs harder to budget. Sources: https://gck6-calculator.grafana.com/ ; https://grafana.com/docs/grafana-cloud/platform/cost-management-and-billing/manage-invoices/understand-your-invoice/performance-testing-invoice/.
+- **Seat/credit subscription**: Gatling combines VU/test-hour/generator quotas and seats at €89 and €356 monthly annual plans. Source: https://gatling.io/pricing.
+- **High fixed-price unlimited/on-prem**: OctoPerf starts unlimited usage at $999/month, with a $99 one-test option. Source: https://octoperf.com/pricing/saas-and-on-premise-load-testing/.
+- **Tiered managed service**: LoadForge spans $67 to $417/month annually with duration, retention, seat, location, and integration limits. Source: https://loadforge.com/pricing.
+- **Open source plus operational cost**: Locust and locust-plugins are free software, but history/analysis requires databases, dashboards, and maintenance. Source: https://github.com/SvenskaSpel/locust-plugins/tree/master/locust_plugins/dashboards.
 
-### Buying behavior and monetization patterns
+### Realistic pricing hypothesis
 
-1. **Freemium plus usage:** Grafana Cloud k6 offers free usage, then platform fee plus VUh consumption [S4].
-2. **Tiered subscription:** Gatling and LoadFocus package seats, minutes/VUs, generators, retention, and analyses [S5][S7].
-3. **Feature/capacity tiers:** BlazeMeter packages concurrent users, VUH, test count, duration, virtual services, and support [S6].
-4. **Enterprise custom:** all major platforms reserve private deployment, premium support, security, high scale, and custom limits for negotiated plans [S4][S5][S6].
+Evidence supports a low-friction open-core or local-team model, not enterprise-first pricing:
 
-### Recommended pricing logic for this project
+- Free: CLI and single-user local workspace, limited saved projects only by local storage.
+- Team: approximately **$19–49/month per workspace** or **$199–399/year**, including shared policy packs, CI/PR summaries, longer run history, and support. This is a product hypothesis, not observed willingness-to-pay data.
+- Business/self-hosted: approximately **$99–249/month** with SSO adapter, RBAC, audit retention, and supported deployment. This is also a hypothesis.
 
-The project should not charge for basic local Locust execution or deterministic analysis. A plausible future model is:
-
-- **Open-source core:** templates, local CLI, reports, analyzer, one-user workspace.
-- **Team/self-hosted paid add-on:** shared run history, approvals, RBAC/SSO, durable artifact store, policy packs, audit log, supported database/KMS adapters, and upgrade tooling.
-- **Optional managed service:** remote generators and retained run history, usage-based.
-- **Support subscription:** onboarding, architecture reviews, prioritized fixes.
-
-A realistic initial self-hosted team price hypothesis is **$39–$99 per team/month** or **$499–$999/year**, below LoadFocus Basic and BlazeMeter Basic while charging for collaboration rather than local compute. This is a hypothesis to validate with interviews, not established willingness-to-pay evidence.
+These ranges sit below managed load-generation products because the proposed product does not initially fund distributed cloud infrastructure. Validate with 10–15 customer interviews and paid design partners before implementing billing.
 
 ## Modern UX Expectations
 
-### Expected information architecture
+### Category baseline
 
-1. **Projects**: scenario assets, environments, SLO/policy set, secrets references.
-2. **Scenarios**: import OpenAPI/HAR, generate, edit, validate, dry run.
-3. **Runs**: configure load profile and location/runner, start/stop, see generator health.
-4. **Results**: overview, endpoints, errors, time series, baseline diff, capacity, evidence.
-5. **Recommendations**: ranked, confidence-labeled actions linked to evidence.
-6. **Policies and CI**: SLOs, waivers, branch/release gates, artifact schema.
-7. **Integrations**: Grafana/Prometheus/OTel, notifications, remote runners.
-8. **Administration**: storage, security status, retention, users, audit.
+1. **Home/run inbox**: recent runs, status, environment, branch/commit, policy, baseline, and clear primary action.
+2. **Import/onboarding**: drag-and-drop a ZIP or select a CSV prefix; auto-detect related files; show a sample project; validate before analysis.
+3. **Run detail**: summary cards, latency/RPS/error timeline, endpoint table, SLO decision, anomaly cards, and evidence provenance.
+4. **Compare view**: baseline selector, percentage and absolute deltas, confidence/data-quality indicators, and regression/improvement filters.
+5. **Policy view**: versioned SLOs, scope, owner, effective date, waiver status, and preview against historical runs.
+6. **Integrations/settings**: CI snippets, export formats, optional OTel/Prometheus adapters, data location, deletion controls.
 
-### Onboarding and first use
+### Required states
 
-Modern competitors reduce time to first test through recording, visual editing, Postman/spec import, or browser configuration [S4][S7][S8]. The project should provide a five-step path:
-
-1. Create project.
-2. Import OpenAPI or select a template.
-3. Validate generated requests and required secrets/test data.
-4. Run a 1-user smoke check.
-5. Run a short load test and receive a baseline-ready report.
-
-Each step should expose the generated Python so advanced users retain control.
-
-### Required UI states
-
-- **Empty:** explain the next useful action with an example project.
-- **Loading/running:** show progress, current users/RPS, elapsed/remaining time, generator CPU/memory/network, and cancel behavior.
-- **Partial:** distinguish missing history, failed telemetry correlation, lost workers, and incomplete artifacts.
-- **Error:** actionable cause, affected step, retry safety, and raw log link.
-- **Disabled:** state prerequisites, not merely gray the control.
-- **Success:** summarize pass/fail, baseline delta, artifact locations, and recommended next action.
-- **Stale:** clearly mark old rate cards, baselines, credentials, or agent versions.
+- Empty: sample run and exact command to generate compatible CSV.
+- Loading: named stages such as “validating files,” “parsing history,” and “comparing baseline,” not an indefinite spinner.
+- Success: decision first, then explanation and next check.
+- Partial data: explicit grade and disabled analyses with reason, for example “capacity projection unavailable: 3 history points, 5 required.”
+- Error: file-specific remediation and preserve the user’s selections.
+- Disabled: explain permissions or prerequisites adjacent to the control.
 
 ### Responsiveness and accessibility
 
-- Desktop-first dense analysis tables, but run controls and summaries must work at 360px width.
-- Keyboard navigation, visible focus, semantic headings/landmarks, form labels, live-region updates, color-independent status, and WCAG 2.2 AA contrast.
-- Tables need sticky headers, column selection, CSV export, and a card fallback on narrow screens.
-- Charts need textual summaries and accessible data tables.
+- Full keyboard navigation, visible focus, semantic headings/tables, programmatically associated labels, `aria-live` only for concise status updates, no color-only severity, and WCAG 2.2 AA contrast.
+- Tables must become cards or horizontally scroll with sticky first column on narrow screens.
+- Charts need text summaries, tooltips reachable by keyboard, and downloadable underlying data.
+- Target measurable interaction standards: no layout break at 320 CSS px; all primary workflows keyboard-completable; automated axe scan with zero critical/serious violations; server response progress visible within 500 ms for local actions.
 
-### Trust, privacy, and security indicators
+### Trust, privacy, and security expectations
 
-- “Analyzed locally” badge and explicit network-call status.
-- Provenance panel: input hashes, tool version, configuration, baseline ID, algorithm version, timestamp.
-- Deterministic and LLM-enriched sections visually separated.
-- Confidence labels with “why this was flagged” drill-down.
-- Secret-store/KMS status, encryption adapter, tenant, retention, and audit status.
-- Sanitization warnings for endpoint names, payloads, and exported reports.
+- Show “data stays on this host” and exact files read.
+- Display analyzer version, policy version, input hashes, and generated timestamp on every decision.
+- Never transmit evidence without explicit opt-in; separate LLM enrichment from deterministic findings.
+- Production UI needs secure sessions, CSRF, RBAC, tenant isolation, rate limits, audit log, and KMS-backed secret storage. The current API-key boundary and XOR-style local seal are not sufficient for a multi-user hosted product.
 
-### Progressive disclosure and discoverability
+### Current fit
 
-Default screens should answer: “Did it pass?”, “What changed?”, “Where is the bottleneck?”, and “What should I inspect next?” Advanced statistics, raw CSV, formulas, and model inputs should be one click away. This addresses both managerial readability and expert auditability.
-
-### Current expectation coverage
-
-| Expectation | Met | Partial | Missing |
-|---|:---:|:---:|:---:|
-| Code-first authoring | ✓ | | |
-| OpenAPI import | ✓ | | |
-| Visual/recorded authoring | | | ✓ |
-| CI/SLO gates | ✓ | | |
-| Multi-format artifacts | ✓ | | |
-| Baseline comparison | ✓ | | |
-| Evidence-linked diagnosis | | ✓ | |
-| Historical run workspace | | ✓ | |
-| Collaboration/approvals | | ✓ | |
-| Remote load zones | | | ✓ |
-| Observability correlation | | ✓ | |
-| Responsive/accessibility claims | | ✓ | |
-| Automated accessibility verification | | | ✓ |
-| Production-grade identity/KMS | | ✓ | |
-| Coherent first-run wizard | | | ✓ |
+The project already meets parts of responsive design, visible focus, live status, deterministic findings, source provenance, and local-first messaging. It is missing the run inbox, import/discovery flow, persistent analysis history, visual comparison, production identity/security, and consolidated navigation.
 
 ## Open-Source and Automation Opportunities
 
-1. **locust-plugins adapter layer.** Reuse its test-data readers, Timescale/Grafana integration, transaction manager, checks, and protocol users rather than reimplementing them [S12]. Compatibility risk is manageable through optional extras and version checks.
-2. **Locust native CSV and event contracts.** Continue treating official CSV names/history semantics as the source of truth [S2][S3]. Add schema-version detection and provenance to avoid silent drift.
-3. **OpenTelemetry correlation.** The repository already ships OTel examples and Tempo dashboards. Standardize trace/span links in analysis artifacts rather than inventing another telemetry format.
-4. **OpenAPI plus HAR/Postman ingestion.** OpenAPI exists; HAR-to-Locust tools are part of the ecosystem [S13][S14]. A common intermediate scenario model can support preview, validation, and round-trip editing.
-5. **CI annotations.** Emit GitHub Checks/Step Summary/PR Markdown from the same stable evidence bundle. This is a low-complexity extension of existing Markdown/JUnit/JSON exporters.
-6. **Runner providers.** Define a small interface for local, SSH, Kubernetes, and CI-hosted Locust workers. Community projects already cover distributed orchestration [S13][S14].
-7. **Policy as code.** Store SLOs, baseline selection, minimum sample quality, allowed waivers, and required telemetry in versioned YAML/JSON, validated by schema.
-8. **Automated data-quality checks.** Before analysis, detect short runs, missing full history, generator saturation, warm-up contamination, unstable RPS, and baseline incompatibility.
-9. **Reproducible artifact envelope.** Package run config, input hashes, analyzer output, logs, and selected CSVs as a signed/checksummed bundle for audits and comparisons.
-10. **Accessible component tests.** Add browser-level keyboard/ARIA/state snapshots for the workspace, matching the project’s documented visual-test intent.
+| Opportunity | Relevant project/standard | Compatibility | Recommendation |
+|---|---|---|---|
+| Import full-history and per-request context | Locust CSV and `CsvRequestLogger` | Native Python/CSV | Add schema adapters and explicit data-quality detection. |
+| Optional historical backend | locust-plugins Timescale schema | Python/Postgres/Grafana | Import or link existing runs; do not require Timescale. https://github.com/SvenskaSpel/locust-plugins |
+| Metrics correlation | Prometheus/OpenMetrics HTTP API | Existing Grafana/Prometheus docs | Store query, time window, labels, and sampled result as evidence. |
+| Trace correlation | OpenTelemetry/OTLP and W3C Trace Context | Existing OTel examples | Accept trace IDs and deep links; optionally ingest bounded trace summaries. |
+| CI annotations | GitHub Checks/Step Summary, GitLab Code Quality/JUnit | Existing JSON/JUnit exports | Generate stable Markdown and machine schemas with policy/evidence hashes. |
+| Portable evidence | CycloneDX-like provenance concepts, in-toto/SLSA attestations | JSON and hashing already present | Create a small versioned `performance-evidence.json` schema and sign later. |
+| Local packaging | Docker Compose and SQLite | Existing Docker/Flask | Provide one-command local workspace with mounted results directory. |
+| Charts | Lightweight accessible chart library | Flask/static assets | Use a maintained library with data table fallback; avoid building graphs by hand. |
+
+Open-source evidence also highlights a boundary: Locust-plugins calls Locust “bare bones” and exists to stop teams reinventing common functionality. The project can become the curated decision workflow above that ecosystem, while contributing parsers/adapters upstream where appropriate. Source: https://github.com/SvenskaSpel/locust-plugins (accessed 2026-08-09).
 
 ## Differentiation Opportunities
 
-| Capability | Problem solved / target | Evidence | Competitor gap | Product value | Complexity | Main risk | Priority | Success criterion |
-|---|---|---|---|---|---|---|---|---|
-| Evidence-linked Performance Diagnosis | Developers, QA, managers need trustworthy “why” | Analysis demand [S4][S7][S8][S15]; AI distrust [S19] | Cloud tools explain, but local/source-auditable workflows are weaker | Converts CSV into defensible action | MEDIUM | False causal implication | P0 | ≥80% of findings link to exact metric rows/time windows and one next check; user study ≥4/5 trust |
-| Guided Project-to-Run Workspace | New users face fragmented tools | Studio/no-code investments [S4][S7][S8] | Locust ecosystem remains assembled manually [S12] | Faster activation without abandoning Python | HIGH | Scope explosion | P0 | Median first smoke test <15 minutes in 5-user usability test |
-| Portable CI Evidence Bundle | SRE/QA need reproducible gates and review artifacts | CI and SLO emphasis [S4][S8][S16] | SaaS results can be platform-bound | Local/cloud neutral, auditable release evidence | LOW-MEDIUM | Schema churn | P0 | One command produces versioned JSON, Markdown, JUnit, hashes, config, and baseline metadata; backward-compat tests |
-| Run Quality and Generator Health Guard | Avoid misleading conclusions when generator or data quality is bad | Local capacity report [S10], official CSV semantics [S2] | Many tools emphasize target findings more than evidence quality | Prevents false regressions/capacity claims | MEDIUM | Platform metrics portability | P1 | Analyzer blocks or downgrades confidence for short/missing/saturated runs in fixture tests |
-| Scenario Import, Preview, and Repair | Generated tests need validation and realistic data | k6 Studio/Gatling/Postman/LoadFocus flows [S4][S7][S8] | Existing generator outputs code but lacks guided repair | Open source “studio” for Python | HIGH | Safe code editing | P1 | Import OpenAPI, resolve required params, run 1-user validation, export Python in one flow |
-| Local-First Team History | Teams want trends without SaaS lock-in | Competitor trend/collaboration features [S4][S8]; privacy/pricing concerns [S19] | Self-hosted lightweight option is scarce | Paid collaboration boundary | HIGH | Security/RBAC/data migration | P1 | 20 comparable runs/project, baseline promotion, comments/approval, tenant isolation tests |
-| Ecosystem Integration Packs | Users reinvent data/protocol/observability integrations | locust-plugins rationale/catalog [S12][S14] | Raw Locust is intentionally bare | Faster adoption and less duplication | MEDIUM | Version compatibility | P2 | Three supported packs with compatibility matrix and end-to-end examples |
+| Capability | Problem solved / target | Evidence and competitor gap | Value | Complexity | Risk | Priority | Success criterion |
+|---|---|---|---|---|---|---|---|
+| Run Inbox + Smart Import | Paths and CSV naming block first use; all Locust users | Default Locust exports files but does not deliver persistent decision history; SaaS products provide project/run lists | Time-to-first-insight under 5 minutes | MEDIUM | ZIP/path security and schema drift | P0 | 90% of fixture bundles import without manual file mapping; first analysis completed in ≤5 min in usability test |
+| Explainable Baseline Compare | Teams need to know what changed and why | History/comparison is a paid or infrastructure-heavy capability | Defensible CI decisions | MEDIUM | False causality from correlation | P0 | Every flagged regression links metric, current/baseline values, source rows, policy version, and confidence |
+| Policy-to-CI Decision Artifact | Platform owners need consistent gates | Competitors gate via cloud platforms; current project has pieces but no polished contract | Auditability and cross-repo adoption | MEDIUM | Schema compatibility | P0 | Deterministic artifact hash for identical inputs; GitHub summary generated; exit code and UI decision always match |
+| Observability Evidence Attachments | Engineers manually align load and system metrics | k6/Gatling monetize correlation; Locust OSS requires custom setup | Faster root-cause triage without lock-in | HIGH | Time alignment, cardinality, secret leakage | P1 | Attach at least one Prometheus series and one trace link to a finding; export contains query and bounded evidence |
+| Data Quality and Confidence Guardrails | Partial history can create misleading predictions | Competitor “AI insights” often obscures evidence quality | Trust and reduced false positives | LOW | Users may dislike conservative results | P0 | No capacity prediction shown as actionable below minimum data; UI explains all disabled analyses |
+| Local Team Collaboration | Security-sensitive teams cannot upload evidence | Commercial tools are cloud-first or expensive on-prem | Private shared history and reviews | HIGH | Auth/RBAC/KMS burden | P1 | Two roles, per-project access, append-only audit, supported backup/restore |
+| Locust Ecosystem Importers | Existing users have Grafana/Timescale history | OSS ecosystem is fragmented | Faster switching and adoption | MEDIUM | External schema changes | P2 | Import locust-plugins run metadata and preserve source references for ≥95% of fixture records |
+
+## User Stories (BDD)
+
+```json
+[
+  {
+    "id": "US-001",
+    "epic": "Run Inbox and Smart Import",
+    "role": "Locust user",
+    "action": "drag a Locust result ZIP into the workspace and have all related CSV files detected",
+    "benefit": "I can analyze a run without understanding file naming or server paths",
+    "story": "As a Locust user, I want to drag a Locust result ZIP into the workspace and have all related CSV files detected, so that I can analyze a run without understanding file naming or server paths.",
+    "gui_flow": [
+      "User opens Run Inbox → sees recent runs and an Import run button",
+      "User clicks Import run → sees drag-and-drop area and file requirements",
+      "User drops a ZIP → sees validation progress for archive, stats, failures, and history",
+      "User reviews detected run name, time range, endpoints, and data-quality grade",
+      "User clicks Analyze → sees a persisted run detail page with decision and findings"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "a ZIP contains one valid stats CSV and optional related files", "when": "the user imports it", "then": "the system maps the files, displays endpoint count and time range, and enables Analyze within 10 seconds for a 20 MB archive"},
+      {"type": "given", "text": "a ZIP contains two possible stats prefixes", "when": "validation completes", "then": "the UI lists both candidates and requires one explicit selection before Analyze is enabled"},
+      {"type": "given", "text": "an archive has an invalid path traversal entry or no stats CSV", "when": "the user imports it", "then": "the import is rejected, no file is written outside the workspace, and the UI names the failed safety or file requirement"}
+    ]
+  },
+  {
+    "id": "US-002",
+    "epic": "Run Inbox and Smart Import",
+    "role": "performance engineer",
+    "action": "browse and filter saved analyses",
+    "benefit": "I can find a release run and its decision quickly",
+    "story": "As a performance engineer, I want to browse and filter saved analyses, so that I can find a release run and its decision quickly.",
+    "gui_flow": [
+      "User opens Run Inbox → sees runs sorted newest first",
+      "User enters a branch, environment, or tag filter → list updates",
+      "User selects Failed policy status → only violating runs remain",
+      "User opens a run row → sees the original inputs, policy, baseline, and evidence hash",
+      "User returns to Inbox → previous filters remain active"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "50 saved runs across environments", "when": "the user filters by environment and failed status", "then": "every displayed run matches both filters and the result count is shown"},
+      {"type": "given", "text": "a run has no branch metadata", "when": "a branch filter is active", "then": "the run is excluded and can be found under a Missing metadata filter"},
+      {"type": "given", "text": "the run index cannot be read", "when": "the Inbox loads", "then": "an error state appears with a retry control and no stale status is presented as current"}
+    ]
+  },
+  {
+    "id": "US-003",
+    "epic": "Run Inbox and Smart Import",
+    "role": "first-time user",
+    "action": "analyze a bundled sample run",
+    "benefit": "I can understand the product before producing my own Locust files",
+    "story": "As a first-time user, I want to analyze a bundled sample run, so that I can understand the product before producing my own Locust files.",
+    "gui_flow": [
+      "User opens an empty Run Inbox → sees Try sample run and Import run",
+      "User clicks Try sample run → sees what synthetic scenario will be loaded",
+      "User clicks Continue → sees staged analysis progress",
+      "User arrives on Run Detail → sees one passing and one regressing example finding",
+      "User clicks Show me how to create my files → sees a copyable Locust command"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "the workspace has no runs", "when": "the user chooses Try sample run", "then": "a sample analysis is created without network access and opens within 5 seconds"},
+      {"type": "given", "text": "a sample run already exists", "when": "the user launches it again", "then": "the system opens the existing sample or creates a separately labelled copy without overwriting user data"},
+      {"type": "given", "text": "sample assets are missing or fail hash verification", "when": "the user launches the sample", "then": "analysis does not run and the UI reports SAMPLE_ASSET_INVALID with a reinstall instruction"}
+    ]
+  },
+  {
+    "id": "US-004",
+    "epic": "Baseline Trends and Explainable CI Decisions",
+    "role": "performance engineer",
+    "action": "compare a run with an approved baseline and inspect metric deltas",
+    "benefit": "I can identify which endpoints caused the regression",
+    "story": "As a performance engineer, I want to compare a run with an approved baseline and inspect metric deltas, so that I can identify which endpoints caused the regression.",
+    "gui_flow": [
+      "User opens Run Detail → sees current decision and Compare control",
+      "User selects an approved baseline → sees compatibility and age checks",
+      "User clicks Compare → sees summary deltas and a synchronized latency/RPS timeline",
+      "User selects a regressed endpoint → sees p95, p99, error, and request-count evidence",
+      "User opens Source rows → sees exact file, row/time window, and input hash"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "current and baseline runs share an endpoint", "when": "comparison runs", "then": "absolute and percentage p95, p99, error-rate, and request-count deltas are shown with current and baseline values"},
+      {"type": "given", "text": "an endpoint exists in only one run", "when": "comparison runs", "then": "it is labelled Added or Missing and is not assigned a fabricated percentage delta"},
+      {"type": "given", "text": "baseline files are unreadable or hashes changed", "when": "comparison starts", "then": "no decision is recalculated and the UI reports BASELINE_EVIDENCE_INVALID with the affected file"}
+    ]
+  },
+  {
+    "id": "US-005",
+    "epic": "Baseline Trends and Explainable CI Decisions",
+    "role": "release owner",
+    "action": "promote a successful run as the approved baseline for an environment",
+    "benefit": "future comparisons use an explicit and auditable reference",
+    "story": "As a release owner, I want to promote a successful run as the approved baseline for an environment, so that future comparisons use an explicit and auditable reference.",
+    "gui_flow": [
+      "User opens a passing Run Detail → sees Promote to baseline",
+      "User clicks Promote → sees environment, label, and replacement warning",
+      "User selects production and enters a reason → preview shows previous and new baseline",
+      "User confirms → sees promotion timestamp, actor, reason, and evidence hash",
+      "User opens Baselines → sees exactly one active production baseline and retained history"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "a run passed the selected policy and has complete evidence", "when": "an authorized user promotes it", "then": "it becomes the active baseline for that environment and an audit record captures old ID, new ID, reason, actor, and timestamp"},
+      {"type": "given", "text": "an active baseline already exists", "when": "a replacement is confirmed", "then": "the prior baseline remains immutable in history and only the new baseline is marked active"},
+      {"type": "given", "text": "the run failed policy or evidence verification", "when": "promotion is attempted", "then": "promotion is blocked and the UI lists each unmet prerequisite"}
+    ]
+  },
+  {
+    "id": "US-006",
+    "epic": "Baseline Trends and Explainable CI Decisions",
+    "role": "CI owner",
+    "action": "export a deterministic decision artifact and pull-request summary",
+    "benefit": "automated gates are reviewable and reproducible",
+    "story": "As a CI owner, I want to export a deterministic decision artifact and pull-request summary, so that automated gates are reviewable and reproducible.",
+    "gui_flow": [
+      "User opens Run Detail → sees Export decision",
+      "User clicks Export decision → chooses JSON evidence and Markdown summary",
+      "User reviews included policy version, baseline, findings, and source hashes",
+      "User clicks Download → receives both files with stable schema versions",
+      "User opens CI setup → sees a command that returns the same measured exit code"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "identical input files, analyzer version, baseline, and policy", "when": "the artifact is generated twice", "then": "canonical JSON content and decision hash are byte-identical excluding an explicitly non-hashed generated-at field"},
+      {"type": "given", "text": "a report has more than 20 findings", "when": "Markdown is generated", "then": "the summary shows the top 20 by severity and links to the complete JSON without changing the gate result"},
+      {"type": "given", "text": "artifact writing fails", "when": "export is requested", "then": "no partial file is presented as complete and the UI reports the target path and retry action"}
+    ]
+  },
+  {
+    "id": "US-007",
+    "epic": "Observability Evidence Correlation",
+    "role": "SRE",
+    "action": "attach Prometheus metrics to the exact load-test window",
+    "benefit": "I can test whether latency regressions coincide with resource saturation",
+    "story": "As an SRE, I want to attach Prometheus metrics to the exact load-test window, so that I can test whether latency regressions coincide with resource saturation.",
+    "gui_flow": [
+      "User opens a finding → sees Add observability evidence",
+      "User selects Prometheus → enters endpoint alias and a saved query template",
+      "User previews the derived start/end time and labels → sees a bounded sample count",
+      "User clicks Attach → sees the metric overlaid with load-test p95 and RPS",
+      "User exports evidence → query, window, labels, samples, and source URL alias are included"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "Prometheus returns a valid range vector for the run window", "when": "the user attaches it", "then": "the chart uses the same UTC time axis and the evidence stores query, start, end, step, labels, and returned samples"},
+      {"type": "given", "text": "metric timestamps do not overlap at least 50% of the run window", "when": "preview runs", "then": "the UI labels alignment confidence LOW and does not state a causal conclusion"},
+      {"type": "given", "text": "Prometheus is unreachable or returns invalid JSON", "when": "Attach is clicked", "then": "the finding remains unchanged and an error names the connection alias without exposing credentials"}
+    ]
+  },
+  {
+    "id": "US-008",
+    "epic": "Observability Evidence Correlation",
+    "role": "performance engineer",
+    "action": "link a trace to a slow endpoint finding",
+    "benefit": "I can move from a statistical regression to a concrete service path",
+    "story": "As a performance engineer, I want to link a trace to a slow endpoint finding, so that I can move from a statistical regression to a concrete service path.",
+    "gui_flow": [
+      "User opens an endpoint regression → sees related trace IDs from imported context or Add trace",
+      "User selects a trace ID → sees service, duration, status, and timestamp preview",
+      "User clicks Attach → trace is listed under Evidence with a deep link",
+      "User expands trace summary → sees the five longest spans and error spans",
+      "User exports the decision → trace ID, provider alias, summary, and link template are preserved"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "a trace timestamp falls inside the finding window and endpoint identity matches", "when": "it is attached", "then": "the UI marks alignment HIGH and records the matching fields"},
+      {"type": "given", "text": "a trace is outside the window or endpoint match is absent", "when": "it is attached", "then": "the UI permits it only as manual evidence and labels alignment LOW with the mismatch reason"},
+      {"type": "given", "text": "the trace provider returns secret-bearing attributes", "when": "the summary is stored", "then": "configured sensitive keys are redacted and the export contains no original sensitive value"}
+    ]
+  },
+  {
+    "id": "US-009",
+    "epic": "Observability Evidence Correlation",
+    "role": "security-conscious platform owner",
+    "action": "control whether external evidence connections may transmit run metadata",
+    "benefit": "the analysis remains compliant with local-only data rules",
+    "story": "As a security-conscious platform owner, I want to control whether external evidence connections may transmit run metadata, so that the analysis remains compliant with local-only data rules.",
+    "gui_flow": [
+      "User opens Settings → sees Data handling with Local-only enabled",
+      "User opens an integration → sees exact fields and hosts used by preview and attach",
+      "User attempts to enable outbound access → sees role requirement and audit notice",
+      "Authorized user enables one allow-listed host → connectivity test runs",
+      "User returns to Run Detail → only approved integrations are available"
+    ],
+    "acceptance_criteria": [
+      {"type": "given", "text": "Local-only mode is enabled", "when": "any user attempts an outbound integration call", "then": "the request is blocked before DNS/network access and an audit event records integration alias and action without payload data"},
+      {"type": "given", "text": "an authorized user allow-lists one HTTPS host", "when": "a connection is tested", "then": "requests are limited to that host, HTTPS is required, and redirects to other hosts are rejected"},
+      {"type": "given", "text": "a non-authorized user changes data-handling policy", "when": "the form is submitted", "then": "the server returns 403, settings remain unchanged, and the UI announces insufficient permission"}
+    ]
+  }
+]
+```
 
 ## Priority-Ranked Development Recommendations
 
-### P0.1 Evidence-linked comparison and diagnosis
-
-Enhance the existing `AnalysisReport` rather than replacing it. Every anomaly, bottleneck, projection, and recommendation should carry:
-
-- source metric(s), endpoint, row/time window, baseline value, current value;
-- algorithm/rule identifier and version;
-- confidence and data-quality grade;
-- a “next validation step,” not an asserted root cause;
-- links to relevant trace/dashboard when available.
-
-Add a comparison-first UI with overview, change drivers, endpoint drill-down, and raw evidence. Keep LLM enrichment optional and visually subordinate.
-
-### P0.2 Guided run workspace
-
-Connect existing scenario generation, configuration, policies, runner command building, and analysis. Do not create a new test engine. The first release should support one local runner and imported OpenAPI, then expose provider interfaces for later distributed backends.
-
-### P0.3 Portable CI evidence bundle
-
-Define a versioned artifact schema and a `locust-kit bundle` or `analyze --bundle` output containing checksums, tool/config versions, baseline identity, data-quality result, report JSON, Markdown summary, JUnit, and selected source files. Add GitHub Step Summary output and annotations.
-
-### P1.1 Run-quality guardrails
-
-Detect insufficient duration/sample count, absent/full history limitations, unstable throughput, warm-up period, generator saturation, baseline mismatch, clock gaps, and high missing-data rates. Findings should downgrade or suppress capacity claims.
-
-### P1.2 Scenario preview and validation
-
-Add a guided editor around existing OpenAPI generation. Required parameters, auth, example payloads, task weights, and variable data should be shown before export. A 1-user validation run should be mandatory before load.
-
-### P1.3 Local team history and approvals
-
-Only after single-user flow works, add durable run history, named baseline promotion, comments, approvals, branch/release metadata, and supported storage/KMS/auth adapters. This is the strongest future paid boundary.
-
-### P2. Ecosystem packs
-
-Document and test compatibility with locust-plugins, OTel/Grafana, and at least one remote runner. Prefer adapters and examples over duplicated implementations.
+1. **P0: Build the Run Inbox + Smart Import vertical slice.** It removes the biggest onboarding defect and creates the persistence foundation for all later features. Include archive-safe import, file auto-detection, data-quality grading, saved analysis records, recent-run filtering, and sample data.
+2. **P0: Unify baselines, policies, findings, and evidence into one Run Detail/Compare view.** Reuse existing analyzers and evidence models. Add timeline and endpoint drill-down, explicit baseline promotion, stale/incompatible baseline warnings, and canonical decision export.
+3. **P0: Productize CI output.** Publish a versioned JSON schema, canonical hashing rules, concise Markdown summary, stable exit-code mapping, and examples for GitHub Actions/GitLab/Jenkins.
+4. **P0: Make confidence and missing-data behavior first class.** Never hide insufficient data behind an “AI” label. Show why an analysis is unavailable and what command/options produce the required evidence.
+5. **P1: Add bounded Prometheus and OpenTelemetry evidence adapters.** Start read-only, explicit, and local-first. Store evidence snapshots or links, not unrestricted raw telemetry.
+6. **P1: Harden multi-user deployment only after local workflow validation.** Add identity, RBAC, CSRF, KMS-backed secrets, audit retention, and backup/restore as a separate business tier.
+7. **P2: Import ecosystem histories.** Add locust-plugins/Timescale import and cloud-provider links after the core schema is stable.
 
 ## Recommended Scope for the Next Development Pass
 
-**Theme: “Trustworthy run-to-decision workflow.”**
+### In scope
 
-Ship only these integrated outcomes:
+- A persistent `AnalysisRun` model linking imported files, hashes, analyzer version, status, data-quality grade, baseline, policy, findings, and exports.
+- Safe ZIP/directory import with auto-detection for Locust stats/failures/exceptions/history.
+- Run Inbox with empty, loading, filtering, error, and sample states.
+- Run Detail with summary, timeline, endpoint table, findings, confidence, and source-row drawer.
+- Baseline promotion and Compare view with immutable history.
+- Canonical versioned decision JSON and Markdown PR summary.
+- Full keyboard/accessibility regression tests and responsive visual states.
+- Targeted tests plus the complete existing regression suite after implementation.
 
-1. A project/run page that can select an existing Locust CSV prefix or launch a local configured run.
-2. A baseline comparison screen backed by the current analyzer.
-3. Evidence detail for each finding, including source rows/time windows, rule version, confidence, and data-quality warnings.
-4. A portable CI evidence bundle with stable schema, Markdown/JUnit/JSON, checksums, and provenance.
-5. Distribution fixes required to make this flow installable: declare the workspace extra/dependency, repair Docker startup, and provide one verified bootstrap command.
-6. End-to-end tests and visual/accessibility state coverage for empty, running, partial, error, pass, and fail states.
+### Explicitly out of scope
 
-**Explicitly out of scope:** proprietary cloud load generation, a full visual scenario IDE, multi-tenant enterprise RBAC, billing, a new statistics engine, and additional protocols. These are valuable later but would dilute the highest-value pass.
+- Hosted/distributed load generation.
+- Browser recording or full no-code scenario authoring.
+- Billing implementation.
+- General-purpose dashboard builder.
+- Automatic remediation or autonomous production changes.
+- Multi-tenant SaaS before authentication/KMS architecture is complete.
+
+This scope is small enough to ship as one coherent product pass and broad enough to test the core commercial hypothesis: users will adopt a local-first Locust decision workspace if it materially shortens time from CSV files to an explainable release decision.
 
 ## Risks, Unknowns, and Assumptions
 
-- **No direct customer interviews were available.** Community posts and public issues validate recurring problems, but not exact purchase intent.
-- **Market-size estimates conflict materially.** Do not quote a single TAM/CAGR without defining the category and method [S16][S17].
-- **Current workspace behavior was assessed from source/docs, not a live browser session.** Flask was not installed in the research environment.
-- **The full test suite was not executable in this environment** because the runtime lacked Locust and Ruff. The repository’s claimed pass count is documentation evidence, not independently reproduced here.
-- **Causal diagnosis is dangerous.** Correlation between load and latency/error does not prove database, pool, or scaling root cause. Recommendations must remain hypotheses until corroborated by telemetry.
-- **Remote execution can become a platform business.** Keep a provider interface first; avoid building cloud infrastructure prematurely.
-- **Security boundary is incomplete by design.** The local vault cipher, identity, CSRF, rate limiting, KMS, and tenant enforcement need production adapters before team deployment.
-- **Pricing hypothesis is unvalidated.** Interview 8–12 target teams and test a landing page or design-partner offer before implementing billing.
-- **Open-source compatibility creates maintenance cost.** Integration packs need pinned compatibility matrices and contract tests.
-- **The optimal primary persona is assumed to be Python/Locust teams.** Validate whether consultants/QA leads or backend developers own purchasing and workflow decisions.
+- **Demand concentration risk**: evidence validates the problem, but not the number of Locust users willing to pay. Run 10–15 structured interviews and seek at least three paid design partners.
+- **Broad repository positioning**: the project currently promises templates, generation, workspace, intelligence, dashboards, vault, capacity and more. Without a narrow landing page, users may not understand the primary value.
+- **Trust risk**: statistical heuristics can be mistaken for causality. Every recommendation must expose data, method, thresholds, and limitations.
+- **Security risk**: the current production API-key check and development cipher are insufficient for shared hosting. Keep next pass local/single-team by default.
+- **Data compatibility risk**: Locust CSV schemas and custom listeners vary. Preserve tolerant parsing and add explicit schema/version reporting.
+- **Performance risk**: large full-history or per-request archives can be substantial. Stream parsing, apply size limits, and benchmark 20 MB, 100 MB, and 1 GB cases.
+- **Pricing assumption**: proposed price bands are hypotheses inferred from competitor anchors. No direct willingness-to-pay survey was found.
+- **Market-size unknown**: no reliable narrow TAM/CAGR was found; none is asserted.
+- **Competitor response**: k6, Gatling, and LoadForge can add more AI analysis. The moat should be evidence provenance, deterministic local operation, and Locust/Python depth.
 
 ## Sources
 
-Accessed 2026-08-06 unless otherwise noted.
+Access date for all web sources: **2026-08-09**, unless a publication date is stated.
 
-- **[S1]** Locust, “A modern load testing framework” and GitHub repository. Locust / GitHub. https://locust.io/ ; https://github.com/locustio/locust
-- **[S2]** Locust documentation, “Retrieve test statistics in CSV format.” https://docs.locust.io/en/2.37.0/retrieving-stats.html
-- **[S3]** Locust GitHub, current `retrieving-stats.rst`. https://github.com/locustio/locust/blob/master/docs/retrieving-stats.rst
-- **[S4]** Grafana Labs, “Performance & Load Testing with Grafana Cloud k6,” including current packaging and capabilities. https://grafana.com/products/cloud/performance-load-testing-k6/
-- **[S5]** Gatling, “Pricing.” https://gatling.io/pricing
-- **[S6]** Perforce BlazeMeter, “Pricing.” https://www.blazemeter.com/pricing
-- **[S7]** LoadFocus, “Pricing and Plans” and product homepage. https://loadfocus.com/pricing ; https://loadfocus.com/
-- **[S8]** Gatling, product homepage and documentation. https://gatling.io/ ; https://docs.gatling.io/
-- **[S9]** Reddit r/QualityAssurance, “Load/performance testing tools research - K6, Locust, Artillery, etc.” https://www.reddit.com/r/QualityAssurance/comments/mpyxuy/loadperformance_testing_tools_research_k6_locust/
-- **[S10]** Reddit r/ExperiencedDevs, “What tools are you using for load tests?” https://www.reddit.com/r/ExperiencedDevs/comments/16oiqwf/what_tools_are_you_using_for_load_tests/
-- **[S11]** Locust GitHub issues, including auth refresh, downloaded-report chart behavior, and pause/resume requests. https://github.com/locustio/locust/issues
-- **[S12]** Svenska Spel, `locust-plugins` repository and README. https://github.com/SvenskaSpel/locust-plugins
-- **[S13]** Awesome Locust, curated ecosystem list. https://aliesbelik.github.io/awesome-locust/
-- **[S14]** Awesome Locust GitHub repository. https://github.com/aliesbelik/awesome-locust
-- **[S15]** Ecosyste.ms issue statistics for archived k6 Cloud feature requests. https://issues.ecosyste.ms/hosts/GitHub/repositories/grafana/k6-cloud-feature-requests
-- **[S16]** TrendX Insights, “Performance Testing Market Analysis, Size, Share & Growth Forecast 2026–2034.” https://trendxinsights.com/syndicated-market-research-reports/performance-testing-market/
-- **[S17]** QYResearch, “Global Performance Testing Market Research Report 2025.” Published 2025-02-27. https://www.qyresearch.com/reports/4323645/performance-testing
-- **[S18]** Gatling GitHub issues and repository. https://github.com/gatling/gatling/issues ; https://github.com/gatling/gatling
-- **[S19]** Stack Overflow, “2025 Developer Survey,” especially AI trust/frustration and technology purchase rejection factors. https://survey.stackoverflow.co/2025/
-- **[S20]** Stackpick, “Gatling Pricing 2026,” used only as supplementary review/learning-curve evidence; official pricing takes precedence. https://stackpick.net/pricing/gatling/
-- **[S21]** TestGuild, “BlazeMeter Review: Features, Pricing & Alternatives 2025,” supplementary independent strengths/weaknesses. https://testguild.com/tools/blazemeter
-- **[S22]** Perforce BlazeMeter, product overview and open-source framework positioning. https://www.blazemeter.com/
-- **[S23]** Grafana archived k6 Cloud feature-request repository, workflow and disposition. https://github.com/grafana-cold-storage/k6-cloud-feature-requests/
-- **[S24]** Locust documentation, “Third party extensions.” https://docs.locust.io/en/stable/extensions.html
+1. Locust documentation, “Retrieve test statistics in CSV format.” https://docs.locust.io/en/2.37.0/retrieving-stats.html
+2. Locust documentation, “Hosted load testing.” https://docs.locust.io/en/stable/hosted-load-testing.html
+3. Locust GitHub issues index. https://github.com/locustio/locust/issues
+4. Locust changelog highlights. https://docs.locust.io/en/stable/changelog.html
+5. Stack Overflow, “Collect (and chart/analyze) additional metrics with Locust,” 2024-08-16. https://stackoverflow.com/questions/78877954/collect-and-chart-analyze-additional-metrics-with-locust
+6. OneUptime, “How to Analyze Locust Test Results,” 2026-01-28. https://oneuptime.com/blog/post/2026-01-28-analyze-locust-test-results/view
+7. Reddit r/softwaretesting, “Performance testing tools.” https://www.reddit.com/r/softwaretesting/comments/1c7q8l6/performance_testing_tools/
+8. Reddit r/QualityAssurance, “Performance Testing Options.” https://www.reddit.com/r/QualityAssurance/comments/12q5tkf/performance_testing_options/
+9. Svenska Spel, locust-plugins repository. https://github.com/SvenskaSpel/locust-plugins
+10. Svenska Spel, Locust dashboards. https://github.com/SvenskaSpel/locust-plugins/tree/master/locust_plugins/dashboards
+11. PyPI, locust-plugins release page. https://pypi.org/project/locust-plugins/
+12. BlazeMeter, “Locust Monitoring with Grafana in Just 15 Minutes.” https://www.blazemeter.com/blog/locust-grafana
+13. Grafana Labs, Grafana Cloud k6 product page. https://grafana.com/products/cloud/performance-load-testing-k6/
+14. Grafana Labs, pricing. https://grafana.com/pricing/
+15. Grafana Labs, k6 calculator and VUh rate. https://gck6-calculator.grafana.com/
+16. Grafana Labs, Performance Testing invoice/VUh documentation. https://grafana.com/docs/grafana-cloud/platform/cost-management-and-billing/manage-invoices/understand-your-invoice/performance-testing-invoice/
+17. G2, k6 reviews. https://www.g2.com/products/k6/reviews
+18. Gatling, pricing. https://gatling.io/pricing
+19. Gatling, FAQ. https://docs.gatling.io/tutorials/faq/
+20. PeerSpot, Gatling Enterprise reviews. https://www.peerspot.com/products/gatling-enterprise-reviews
+21. OctoPerf, official pricing. https://octoperf.com/pricing/saas-and-on-premise-load-testing/
+22. Capterra, OctoPerf profile/review. https://www.capterra.com/p/145638/Octoperf/
+23. LoadForge, official pricing. https://loadforge.com/pricing
+24. G2, LoadForge reviews. https://www.g2.com/products/loadforge/reviews
+25. BrowserStack, “Top 10 Performance Testing Tools in 2026,” updated 2026-06-09. https://www.browserstack.com/guide/performance-testing-tools
+
+Project evidence reviewed includes `README.md`, `CHANGELOG.md`, `pyproject.toml`, `Dockerfile`, `docs/`, `examples/`, `src/locust_templates/`, `tests/`, workflow assets, and the pre-existing phase documents. Code-derived conclusions in this report cite the relevant paths and symbols inline.

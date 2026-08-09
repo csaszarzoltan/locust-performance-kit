@@ -85,6 +85,12 @@ class PerformanceWorkspace:
                 CREATE TABLE IF NOT EXISTS estimates(id TEXT PRIMARY KEY,users INTEGER,minutes REAL,zones INTEGER,card_id TEXT,cost REAL,workers INTEGER,state TEXT,created REAL);
                 CREATE TABLE IF NOT EXISTS audit(id TEXT PRIMARY KEY,kind TEXT,resource_id TEXT,data TEXT,created REAL);
                 CREATE TABLE IF NOT EXISTS idempotency(key TEXT PRIMARY KEY,resource_id TEXT,created REAL);
+                CREATE TABLE IF NOT EXISTS analysis_runs(id TEXT PRIMARY KEY,label TEXT,environment TEXT,branch TEXT,tags_json TEXT,state TEXT,decision TEXT,quality_grade TEXT,source_fingerprint TEXT,baseline_run_id TEXT,slos_json TEXT,report_schema TEXT,report_json TEXT,error_code TEXT,correlation_id TEXT,sample INTEGER,created REAL,updated REAL);
+                CREATE TABLE IF NOT EXISTS analysis_inputs(id TEXT PRIMARY KEY,run_id TEXT,role TEXT,relative_path TEXT,original_safe_name TEXT,size INTEGER,sha256 TEXT,created REAL,UNIQUE(run_id,role));
+                CREATE TABLE IF NOT EXISTS import_sessions(id TEXT PRIMARY KEY,token_digest TEXT UNIQUE,staging_relative_path TEXT,preview_json TEXT,state TEXT,expires REAL,created REAL,committed_run_id TEXT);
+                CREATE TABLE IF NOT EXISTS baselines(id TEXT PRIMARY KEY,environment TEXT,label TEXT,run_id TEXT,state TEXT,reason TEXT,advisory_override INTEGER,created REAL,superseded REAL);
+                CREATE UNIQUE INDEX IF NOT EXISTS one_active_baseline_per_environment ON baselines(environment) WHERE state='ACTIVE';
+                CREATE TABLE IF NOT EXISTS analysis_artifacts(id TEXT PRIMARY KEY,run_id TEXT,kind TEXT,schema TEXT,sha256 TEXT,size INTEGER,created REAL,UNIQUE(run_id,kind));
                 """
             )
 
@@ -449,6 +455,45 @@ class PerformanceWorkspace:
                 )
             ]
 
+
+    def save_analysis_run(self, *, run_id: str, label: str, environment: str = "", branch: str = "", tags: list[str] | None = None, decision: dict[str, Any], baseline_run_id: str | None = None, slos: dict[str, float] | None = None, sample: bool = False) -> None:
+        """Persist one immutable normalized analysis decision."""
+        now=time.time(); state="READY"; status=decision["decision"]["status"]
+        with self._db() as db:
+            db.execute("INSERT INTO analysis_runs VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",(run_id,label,environment,branch,json.dumps(tags or []),state,status,decision["quality"]["grade"],decision["hash"]["value"],baseline_run_id,json.dumps(slos or {},sort_keys=True),decision["schema"],json.dumps(decision,sort_keys=True),None,_id("corr"),int(sample),now,now))
+            self._audit(db,"ANALYSIS_READY",run_id,{"decision":status,"quality":decision["quality"]["grade"]})
+
+    def analysis_run(self, run_id: str) -> dict[str, Any]:
+        with self._db() as db: row=db.execute("SELECT * FROM analysis_runs WHERE id=?",(run_id,)).fetchone()
+        if not row: raise KeyError(run_id)
+        result=dict(row); result["tags"]=json.loads(result.pop("tags_json")); result["report"]=json.loads(result.pop("report_json")); return result
+
+    def list_analysis_runs(self, *, query: str = "", environment: str = "", branch: str = "", decision: str = "", quality: str = "", missing_metadata: bool = False) -> list[dict[str, Any]]:
+        clauses=[]; args=[]
+        for column,value in (("environment",environment),("branch",branch),("decision",decision),("quality_grade",quality)):
+            if value: clauses.append(f"{column}=?"); args.append(value)
+        if query: clauses.append("label LIKE ?"); args.append(f"%{query}%")
+        if missing_metadata: clauses.append("(environment='' OR branch='')")
+        sql="SELECT * FROM analysis_runs"+(" WHERE "+" AND ".join(clauses) if clauses else "")+" ORDER BY created DESC LIMIT 100"
+        with self._db() as db: return [dict(x) for x in db.execute(sql,args)]
+
+    def promote_baseline(self, run_id: str, environment: str, label: str, reason: str, *, allow_advisory: bool = False) -> str:
+        if not environment.strip() or not label.strip() or len(reason.strip()) < (20 if allow_advisory else 10): raise ValueError("BASELINE_INPUT_INVALID")
+        run=self.analysis_run(run_id)
+        if run["state"]!="READY" or run["sample"] or run["decision"] in {"FAIL","ERROR"} or (run["decision"]=="ADVISORY" and not allow_advisory): raise ValueError("BASELINE_NOT_ELIGIBLE")
+        baseline_id=_id("baseline"); now=time.time()
+        with self._db() as db:
+            old=db.execute("SELECT id FROM baselines WHERE environment=? AND state='ACTIVE'",(environment,)).fetchone()
+            db.execute("UPDATE baselines SET state='SUPERSEDED',superseded=? WHERE environment=? AND state='ACTIVE'",(now,environment))
+            db.execute("INSERT INTO baselines VALUES (?,?,?,?,?,?,?,?,NULL)",(baseline_id,environment,label,run_id,"ACTIVE",reason,int(allow_advisory),now))
+            self._audit(db,"BASELINE_PROMOTED",baseline_id,{"old_id":old[0] if old else None,"new_run_id":run_id,"reason":reason,"actor":"local-operator"})
+        return baseline_id
+
+    def list_baselines(self, environment: str = "") -> list[dict[str, Any]]:
+        with self._db() as db:
+            if environment: rows=db.execute("SELECT * FROM baselines WHERE environment=? ORDER BY created DESC",(environment,))
+            else: rows=db.execute("SELECT * FROM baselines ORDER BY environment,state,created DESC")
+            return [dict(x) for x in rows]
 
 def _esc(value: Any) -> str:
     return html.escape(str(value), quote=True)

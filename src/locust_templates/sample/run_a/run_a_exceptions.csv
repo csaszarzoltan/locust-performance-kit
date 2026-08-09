@@ -1,0 +1,5 @@
+Count,Message,Traceback,Nodes
+2,"ConnectionError(('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer')))","Traceback (most recent call last):
+  File ""locust/user/users.py"", line 300, in run
+    self.execute_next_step()
+",localhost

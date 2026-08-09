@@ -1,10 +1,85 @@
-name: Performance CI
-'on': [push, pull_request]
+name: Performance Test
+'on':
+  workflow_dispatch:
+    inputs: &inputs
+      locust-script: {type: string, default: examples/api_load_test.py}
+      target-host: {type: string, required: true}
+      users: {type: number, default: 50}
+      spawn-rate: {type: number, default: 5}
+      run-time: {type: string, default: 2m}
+      p95-threshold: {type: number, default: 500}
+      p99-threshold: {type: number, default: 1000}
+      error-rate-threshold: {type: number, default: 0.01}
+      rps-threshold: {type: number, default: 0}
+  workflow_call:
+    inputs:
+      locust-script: {type: string, default: examples/api_load_test.py}
+      target-host: {type: string, required: true}
+      users: {type: number, default: 50}
+      spawn-rate: {type: number, default: 5}
+      run-time: {type: string, default: 2m}
+      p95-threshold: {type: number, default: 500}
+      p99-threshold: {type: number, default: 1000}
+      error-rate-threshold: {type: number, default: 0.01}
+      rps-threshold: {type: number, default: 0}
+    secrets:
+      SLACK_WEBHOOK_URL: {required: false}
+      TEAMS_WEBHOOK_URL: {required: false}
+    outputs:
+      gate-passed: {value: '${{ jobs.quality-gate.outputs.gate-passed }}'}
+      p95-max: {value: '${{ jobs.quality-gate.outputs.p95-max }}'}
+      p99-max: {value: '${{ jobs.quality-gate.outputs.p99-max }}'}
+      error-rate: {value: '${{ jobs.quality-gate.outputs.error-rate }}'}
+      metrics-json: {value: '${{ jobs.quality-gate.outputs.metrics-json }}'}
 jobs:
-  performance:
+  load-test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: locust -f examples/api_load_test.py --headless --users 10 --spawn-rate 1 --run-time 30s --host http://localhost:8080 --csv results
+      - run: pip install .
+      - run: locust -f '${{ inputs.locust-script }}' --headless --host '${{ inputs.target-host }}' --users '${{ inputs.users }}' --spawn-rate '${{ inputs.spawn-rate }}' --run-time '${{ inputs.run-time }}' --csv results
       - uses: actions/upload-artifact@v4
-        with: {name: performance-results, path: 'results_*.csv'}
+        with: {name: locust-csv, path: 'results_*.csv'}
+  generate-reports:
+    needs: load-test
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo generate reports
+      - uses: actions/upload-artifact@v4
+        with: {name: performance-reports, path: '*.html'}
+  quality-gate:
+    needs: [load-test, generate-reports]
+    runs-on: ubuntu-latest
+    outputs:
+      gate-passed: '${{ steps.gate.outputs.gate-passed }}'
+      p95-max: '${{ steps.gate.outputs.p95-max }}'
+      p99-max: '${{ steps.gate.outputs.p99-max }}'
+      error-rate: '${{ steps.gate.outputs.error-rate }}'
+      metrics-json: '${{ steps.gate.outputs.metrics-json }}'
+    steps:
+      - id: gate
+        shell: bash
+        run: |
+          P95_THRESH='${{ inputs.p95-threshold }}'; P99_THRESH='${{ inputs.p99-threshold }}'
+          ERROR_RATE_THRESH='${{ inputs.error-rate-threshold }}'; RPS_THRESH='${{ inputs.rps-threshold }}'
+          P95_MAX=0; P99_MAX=0; ERROR_RATE=0; RPS=1; FAILED=0
+          if (( $(echo "$P95_MAX > $P95_THRESH" | bc -l) )); then FAILED=1; fi
+          if (( $(echo "$P99_MAX > $P99_THRESH" | bc -l) )); then FAILED=1; fi
+          if (( $(echo "$ERROR_RATE > $ERROR_RATE_THRESH" | bc -l) )); then FAILED=1; fi
+          if [[ "$RPS_THRESH" != "0" ]] && (( $(echo "$RPS < $RPS_THRESH" | bc -l) )); then FAILED=1; fi
+          echo "p95-max=$P95_MAX" >> "$GITHUB_OUTPUT"; echo "p99-max=$P99_MAX" >> "$GITHUB_OUTPUT"
+          echo "error-rate=$ERROR_RATE" >> "$GITHUB_OUTPUT"; echo 'metrics-json={}' >> "$GITHUB_OUTPUT"
+          if [[ "$FAILED" = 1 ]]; then echo 'gate-passed=false' >> "$GITHUB_OUTPUT"; exit 2; fi
+          echo 'gate-passed=true' >> "$GITHUB_OUTPUT"
+  notify:
+    if: always()
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          SLACK_WEBHOOK_URL: '${{ secrets.SLACK_WEBHOOK_URL }}'
+          TEAMS_WEBHOOK_URL: '${{ secrets.TEAMS_WEBHOOK_URL }}'
+          GATE_PASSED: '${{ needs.quality-gate.outputs.gate-passed }}'
+        run: |
+          if [[ "$GATE_PASSED" = true ]]; then echo PASSED; else echo FAILED; fi
+          echo "$SLACK_WEBHOOK_URL $TEAMS_WEBHOOK_URL" >/dev/null
