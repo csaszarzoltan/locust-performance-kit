@@ -846,3 +846,11 @@ Run Detail now shows baseline compatibility, endpoint-level current/baseline val
 ### RC validation pipeline
 
 `.github/workflows/rc-validation.yml` defines separate Linux jobs for full regression/type/lint, isolated domain coverage, Chromium/axe screenshots, and wheel/Docker validation. Pure modules are now importable without initializing Locust/gevent; the documented public API remains available lazily. Run `bash scripts/coverage-gate.sh` locally to enforce 90% changed-scope and 95% critical-module coverage.
+
+## Dokumentáció
+
+- [Engineering Standards](docs/engineering-standards.md) — kötelező olvasmány kódírás előtt
+- [Döntések / tanulságok](docs/decisions/) — javított hibák és anti-minták
+- [Specifikációk](docs/specs/) — feature-ök kanonikus követelményei
+
+- [Módszertan](docs/METHODOLOGY.md) — a lab fejlesztési módszertana (kötelező olvasmány)
