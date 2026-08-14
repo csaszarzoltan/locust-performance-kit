@@ -854,3 +854,14 @@ Run Detail now shows baseline compatibility, endpoint-level current/baseline val
 - [Specifikációk](docs/specs/) — feature-ök kanonikus követelményei
 
 - [Módszertan](docs/METHODOLOGY.md) — a lab fejlesztési módszertana (kötelező olvasmány)
+
+## Offline verification and release campaigns
+
+Verify a portable decision bundle without network access:
+
+```bash
+locust-kit verify run-verification.zip --format json
+locust-workspace
+```
+
+In the workspace, use **Verify bundle** to inspect integrity and **Campaigns** to group required release runs, expose policy drift, and export deterministic readiness JSON or Markdown. See `docs/decision-verification.md` and `docs/release-campaigns.md`.

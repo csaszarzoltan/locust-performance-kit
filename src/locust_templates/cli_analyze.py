@@ -27,6 +27,7 @@ from pathlib import Path
 from locust_templates.decision_artifact import atomic_write, build_decision, render_markdown
 from locust_templates.evidence_bundle import create_evidence_bundle
 from locust_templates.intelligence import analyze_run
+from locust_templates.verification_bundle import reproduce_bundle, verify_bundle
 
 __version__ = "1.7.0"
 
@@ -75,6 +76,11 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument(
         "--version", action="version", version=f"locust-kit {__version__}",
     )
+    verify = sub.add_parser("verify", help="Verify an offline decision bundle")
+    verify.add_argument("bundle", help="Path to performance verification ZIP")
+    verify.add_argument("--format", choices=("json","text"), default="text")
+    verify.add_argument("--output", default="-")
+    verify.add_argument("--reproduce", action="store_true", help="Re-run analysis from packaged sources")
     return parser
 
 
@@ -85,6 +91,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 1
+    if args.command == "verify":
+        result=reproduce_bundle(args.bundle) if args.reproduce else verify_bundle(args.bundle)
+        content=json.dumps(result.to_json(),indent=2,sort_keys=True) if args.format=="json" else f"{result.status}: {result.error_code or 'all checks passed'}"
+        if args.output=="-": print(content)
+        else:
+            try: atomic_write(args.output,content.encode())
+            except OSError as exc: print(f"error: {exc}",file=sys.stderr); return 1
+        return result.exit_code
     if args.command != "analyze":
         parser.print_help()
         return 1

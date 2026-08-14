@@ -256,3 +256,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Version bumped from 1.4.1 to 1.5.0
 - Added ruff `per-file-ignores` for E501 in `tests/` and `src/`
 - Lint fixes: unused imports (`test_graphql.py`), unused variables (`test_websocket.py`), B017 noqa markers
+
+### [Unreleased] - 2026-08-14
+
+#### Added
+- Deterministic `performance-verification-bundle/v1` builder and offline verifier with safe ZIP handling and `locust-kit verify`.
+- Release campaign domain model, additive SQLite persistence, readiness/drift calculation, workspace screens, and `performance-campaign/v1` exports.
+- Responsive verification and campaign UI states plus focused unit and integration coverage.
+
+#### Completed in follow-up
+- Added offline analyzer reproduction with MATCH, DRIFT, and UNREPRODUCIBLE results plus `locust-kit verify --reproduce`.
+- Added transactional campaign draft replacement, run eligibility checks, and optimistic-concurrency conflict protection.
+- Added real-I/O reproduction and campaign concurrency/finalization integration tests.

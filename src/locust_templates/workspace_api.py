@@ -16,6 +16,8 @@ from flask import Blueprint, Flask, Response, jsonify, redirect, request
 
 from locust_templates.analysis_service import analyze_decision
 from locust_templates.decision_artifact import render_markdown
+from locust_templates.campaigns import build_campaign, render_campaign_markdown
+from locust_templates.verification_bundle import verify_bundle
 from locust_templates.evidence import evidence_from_report
 from locust_templates.intelligence import analyze_run
 from locust_templates.product_workspace import (
@@ -30,7 +32,7 @@ from locust_templates.run_import import (
 )
 from locust_templates.workspace_views import baselines as baselines_view
 from locust_templates.workspace_views import detail as detail_view
-from locust_templates.workspace_views import import_form, inbox, promote_form
+from locust_templates.workspace_views import import_form, inbox, promote_form, verify_view, campaign_list_view, campaign_form_view, campaign_detail_view
 from locust_templates.workspace_views import preview as preview_view
 
 
@@ -159,6 +161,53 @@ def create_workspace_blueprint() -> Blueprint:
             payload=render_markdown(_store().analysis_run(run_id)["report"])
             return Response(payload,mimetype="text/markdown",headers={"Content-Disposition":f'attachment; filename="{run_id}-summary.md"',"Cache-Control":"no-store"})
         except KeyError: return _error("RUN_NOT_FOUND",404)
+
+    @bp.route("/workspace/verify",methods=["GET","POST"])
+    def verify_page() -> Response:
+        if request.method=="GET": return Response(verify_view(),mimetype="text/html")
+        upload=request.files.get("bundle")
+        if not upload: return Response(verify_view({"status":"INVALID","error_code":"Select a ZIP","files":[]}),status=422,mimetype="text/html")
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".zip") as tmp:
+            upload.save(tmp.name); result=verify_bundle(tmp.name)
+        return Response(verify_view(result.to_json()),status=200 if result.status in {"VALID","UNSUPPORTED"} else 422,mimetype="text/html",headers={"Cache-Control":"no-store"})
+
+    @bp.get("/workspace/campaigns")
+    def campaign_list() -> Response:
+        return Response(campaign_list_view(_store().list_campaigns(request.args.get("q",""),request.args.get("state",""),request.args.get("readiness",""))),mimetype="text/html")
+
+    @bp.route("/workspace/campaigns/new",methods=["GET","POST"])
+    def campaign_new() -> Response:
+        runs=_store().list_analysis_runs()
+        if request.method=="GET": return Response(campaign_form_view(runs),mimetype="text/html")
+        try:
+            cid=_store().create_campaign(request.form.get("label",""),request.form.get("description",""),[{"environment":request.form.get("environment",""),"scenario":request.form.get("scenario",""),"run_id":request.form.get("run_id") or None}])
+            return redirect(f"/workspace/campaigns/{cid}",303)
+        except ValueError as exc:return Response(campaign_form_view(runs,str(exc)),status=422,mimetype="text/html")
+
+    @bp.get("/workspace/campaigns/<campaign_id>")
+    def campaign_detail(campaign_id: str) -> Response | tuple[Response,int]:
+        try:
+            c=_store().campaign(campaign_id); projection=c.get("projection") or build_campaign(c["label"],c["description"],c["slots"],now=time.time())
+            return Response(campaign_detail_view(c,projection),mimetype="text/html")
+        except KeyError:return _error("CAMPAIGN_NOT_FOUND",404)
+
+    @bp.post("/workspace/campaigns/<campaign_id>/finalize")
+    def campaign_finalize(campaign_id: str) -> Response | tuple[Response,int]:
+        try:_store().finalize_campaign(campaign_id);return redirect(f"/workspace/campaigns/{campaign_id}#campaign-status",303)
+        except (KeyError,ValueError) as exc:return _error(str(exc),409)
+
+    @bp.get("/workspace/campaigns/<campaign_id>/readiness.json")
+    def campaign_json(campaign_id: str) -> Response | tuple[Response,int]:
+        try:c=_store().campaign(campaign_id); payload=c.get("projection"); assert payload
+        except (KeyError,AssertionError):return _error("CAMPAIGN_NOT_FINALIZED",409)
+        return Response(json.dumps(payload,indent=2,sort_keys=True),mimetype="application/json",headers={"Content-Disposition":f'attachment; filename="{campaign_id}-readiness.json"',"Cache-Control":"no-store"})
+
+    @bp.get("/workspace/campaigns/<campaign_id>/summary.md")
+    def campaign_markdown(campaign_id: str) -> Response | tuple[Response,int]:
+        try:c=_store().campaign(campaign_id); payload=c.get("projection"); assert payload
+        except (KeyError,AssertionError):return _error("CAMPAIGN_NOT_FINALIZED",409)
+        return Response(render_campaign_markdown(payload),mimetype="text/markdown",headers={"Content-Disposition":f'attachment; filename="{campaign_id}-summary.md"',"Cache-Control":"no-store"})
 
     @bp.get("/workspace/baselines")
     def baseline_list() -> Response:

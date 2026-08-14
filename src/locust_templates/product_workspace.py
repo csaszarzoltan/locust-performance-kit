@@ -91,12 +91,15 @@ class PerformanceWorkspace:
                 CREATE TABLE IF NOT EXISTS baselines(id TEXT PRIMARY KEY,environment TEXT,label TEXT,run_id TEXT,state TEXT,reason TEXT,advisory_override INTEGER,created REAL,superseded REAL);
                 CREATE UNIQUE INDEX IF NOT EXISTS one_active_baseline_per_environment ON baselines(environment) WHERE state='ACTIVE';
                 CREATE TABLE IF NOT EXISTS analysis_artifacts(id TEXT PRIMARY KEY,run_id TEXT,kind TEXT,schema TEXT,sha256 TEXT,size INTEGER,created REAL,UNIQUE(run_id,kind));
+                CREATE TABLE IF NOT EXISTS campaigns(id TEXT PRIMARY KEY,label TEXT COLLATE NOCASE UNIQUE,description TEXT,state TEXT,readiness TEXT,policy_hash TEXT,campaign_hash TEXT,finalized_json TEXT,created REAL,updated REAL,finalized REAL);
+                CREATE TABLE IF NOT EXISTS campaign_slots(id TEXT PRIMARY KEY,campaign_id TEXT,environment TEXT,scenario TEXT,run_id TEXT,ordinal INTEGER,UNIQUE(campaign_id,environment,scenario));
                 """
             )
 
     def _db(self) -> sqlite3.Connection:
         db = sqlite3.connect(self.path, timeout=10)
         db.row_factory = sqlite3.Row
+        db.execute("PRAGMA foreign_keys=ON")
         return db
 
     def _audit(
@@ -488,6 +491,86 @@ class PerformanceWorkspace:
             db.execute("INSERT INTO baselines VALUES (?,?,?,?,?,?,?,?,NULL)",(baseline_id,environment,label,run_id,"ACTIVE",reason,int(allow_advisory),now))
             self._audit(db,"BASELINE_PROMOTED",baseline_id,{"old_id":old[0] if old else None,"new_run_id":run_id,"reason":reason,"actor":"local-operator"})
         return baseline_id
+
+
+    def create_campaign(self, label: str, description: str, slots: list[dict[str, Any]]) -> str:
+        """Create a transactional campaign draft with required slots."""
+        label=label.strip(); description=description.strip()
+        if not label or len(label)>120 or len(description)>1000 or not slots: raise ValueError("CAMPAIGN_INPUT_INVALID")
+        pairs=[]
+        for item in slots:
+            env=str(item.get("environment","")).strip(); scenario=str(item.get("scenario","")).strip()
+            if not env or not scenario or len(env)>80 or len(scenario)>80: raise ValueError("CAMPAIGN_INPUT_INVALID")
+            pairs.append((env,scenario,item.get("run_id")))
+        if len({(a.casefold(),b.casefold()) for a,b,_ in pairs})!=len(pairs): raise ValueError("CAMPAIGN_DUPLICATE_SLOT")
+        campaign_id=_id("campaign"); now=time.time()
+        try:
+            with self._db() as db:
+                db.execute("INSERT INTO campaigns VALUES (?,?,?,?,?,?,?,?,?,?,?)",(campaign_id,label,description,"DRAFT","INCOMPLETE","","",None,now,now,None))
+                for ordinal,(env,scenario,run_id) in enumerate(pairs):
+                    if run_id: self.analysis_run(str(run_id))
+                    db.execute("INSERT INTO campaign_slots VALUES (?,?,?,?,?,?)",(_id("slot"),campaign_id,env,scenario,run_id,ordinal))
+                self._audit(db,"CAMPAIGN_CREATED",campaign_id,{"label":label,"slots":len(pairs)})
+        except sqlite3.IntegrityError as exc: raise ValueError("CAMPAIGN_DUPLICATE") from exc
+        return campaign_id
+
+    def update_campaign(self, campaign_id: str, label: str, description: str, slots: list[dict[str, Any]], expected_updated: float) -> None:
+        """Replace one campaign draft atomically with optimistic concurrency."""
+        current=self.campaign(campaign_id)
+        if current["state"]!="DRAFT": raise ValueError("CAMPAIGN_FINALIZED")
+        if float(current["updated"])!=float(expected_updated): raise ValueError("CAMPAIGN_CHANGED")
+        label=label.strip(); description=description.strip()
+        if not label or not 1<=len(slots)<=20: raise ValueError("CAMPAIGN_INPUT_INVALID")
+        pairs=[]
+        for item in slots:
+            env=str(item.get("environment","")).strip(); scenario=str(item.get("scenario","")).strip(); run_id=item.get("run_id") or None
+            if not env or not scenario or len(env)>80 or len(scenario)>80: raise ValueError("CAMPAIGN_INPUT_INVALID")
+            if run_id:
+                run=self.analysis_run(str(run_id))
+                if run["sample"] or run["environment"]!=env: raise ValueError("CAMPAIGN_SLOT_INELIGIBLE")
+            pairs.append((env,scenario,run_id))
+        if len({(a.casefold(),b.casefold()) for a,b,_ in pairs})!=len(pairs): raise ValueError("CAMPAIGN_DUPLICATE_SLOT")
+        now=time.time()
+        with self._db() as db:
+            changed=db.execute("UPDATE campaigns SET label=?,description=?,updated=? WHERE id=? AND state='DRAFT' AND updated=?",(label,description,now,campaign_id,expected_updated)).rowcount
+            if not changed: raise ValueError("CAMPAIGN_CHANGED")
+            db.execute("DELETE FROM campaign_slots WHERE campaign_id=?",(campaign_id,))
+            for ordinal,(env,scenario,run_id) in enumerate(pairs): db.execute("INSERT INTO campaign_slots VALUES (?,?,?,?,?,?)",(_id("slot"),campaign_id,env,scenario,run_id,ordinal))
+            self._audit(db,"CAMPAIGN_EDITED",campaign_id,{"slots":len(pairs)})
+
+    def campaign(self, campaign_id: str) -> dict[str, Any]:
+        with self._db() as db:
+            row=db.execute("SELECT * FROM campaigns WHERE id=?",(campaign_id,)).fetchone()
+            slots=[dict(x) for x in db.execute("SELECT * FROM campaign_slots WHERE campaign_id=? ORDER BY ordinal",(campaign_id,))]
+        if not row: raise KeyError(campaign_id)
+        result=dict(row); enriched=[]
+        for slot in slots:
+            try: slot["run"]=self.analysis_run(slot["run_id"]) if slot["run_id"] else None
+            except KeyError: slot["run"]=None
+            enriched.append(slot)
+        result["slots"]=enriched
+        if result["finalized_json"]: result["projection"]=json.loads(result["finalized_json"])
+        return result
+
+    def list_campaigns(self, query: str="", state: str="", readiness: str="") -> list[dict[str, Any]]:
+        clauses=[]; args=[]
+        if query: clauses.append("label LIKE ?"); args.append(f"%{query}%")
+        if state: clauses.append("state=?"); args.append(state)
+        if readiness: clauses.append("readiness=?"); args.append(readiness)
+        sql="SELECT * FROM campaigns"+(" WHERE "+" AND ".join(clauses) if clauses else "")+" ORDER BY updated DESC,label"
+        with self._db() as db:return [dict(x) for x in db.execute(sql,args)]
+
+    def finalize_campaign(self, campaign_id: str) -> dict[str, Any]:
+        from locust_templates.campaigns import build_campaign
+        campaign=self.campaign(campaign_id)
+        if campaign["state"]!="DRAFT": raise ValueError("CAMPAIGN_FINALIZED")
+        projection=build_campaign(campaign["label"],campaign["description"],campaign["slots"],now=time.time())
+        if projection["readiness"]=="INCOMPLETE": raise ValueError("CAMPAIGN_NOT_READY_TO_FINALIZE")
+        now=time.time()
+        with self._db() as db:
+            db.execute("UPDATE campaigns SET state='FINALIZED',readiness=?,campaign_hash=?,finalized_json=?,updated=?,finalized=? WHERE id=? AND state='DRAFT'",(projection["readiness"],projection["campaign_hash"],json.dumps(projection,sort_keys=True),now,now,campaign_id))
+            self._audit(db,"CAMPAIGN_FINALIZED",campaign_id,{"readiness":projection["readiness"],"hash":projection["campaign_hash"][:12]})
+        return projection
 
     def list_baselines(self, environment: str = "") -> list[dict[str, Any]]:
         with self._db() as db:
