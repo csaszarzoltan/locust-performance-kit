@@ -2,91 +2,96 @@
 
 ## Implemented Scope
 
-Restored the missing GitHub Actions performance workflows and repaired UI/coverage gate portability. Preserved the existing verification reproduction and campaign concurrency implementation.
+Continued release hardening by closing the complete regression suite, all six lab gates, Pyright, and package build. The existing verification reproduction, campaign concurrency, restored CI workflows, and portable gate scripts were preserved.
 
 ## Research Items Addressed
 
-Release-trust closure, reusable CI performance gating, headless execution, artifact retention, and portable local quality gates.
+Release trust, deterministic CI verification, package compatibility, and executable quality gates.
 
 ## Plan Requirements Completed
 
-Completed the missing `.github/workflows/perf-test.yml` contract, restored `.github/workflows/performance-ci.yml`, and repaired `ui-gate.sh` and `coverage-gate.sh` invocation.
+Completed full regression closure, TDD/BDD/security/doc-sync/UI/coverage gates, Python 3.9-compatible campaign rendering, Pyright, and sdist/wheel production.
 
 ## User Stories Covered
 
-- US-001: PARTIAL.
-- US-002: PARTIAL.
-- US-003: PASS at domain/CLI level.
-- US-004: PARTIAL.
+- US-001: PARTIAL, persisted Run Detail bundle export remains incomplete.
+- US-002: PARTIAL, durable sessions and exhaustive attack matrix remain incomplete.
+- US-003: PASS at domain and CLI level.
+- US-004: PARTIAL, repository concurrency exists but full multi-slot edit UI remains incomplete.
 - US-005: PASS at domain level.
-- US-006: PARTIAL.
+- US-006: PARTIAL, persisted atomic campaign artifacts remain incomplete.
 
 ## Architecture Decisions
 
-Kept CI restoration declarative and additive. Gate scripts now invoke source-layout imports with `PYTHONPATH=src` and coverage through `python -m coverage`.
+Set `PYTHONPATH` in the shared test bootstrap so spawned interpreters exercise the source-layout package consistently. Refactored the nested campaign-form f-string into explicit alert/body values for Python 3.9 compatibility without changing behavior.
 
 ## UI and UX Implementation
 
-No new UI was implemented in this pass. The UI gate now executes successfully. Browser screenshots and E2E visual inspection remain blocked/not completed.
+No new screen was added. Existing UI integration tests pass. Browser E2E screenshots and visual inspection remain incomplete.
 
 ## TDD Evidence
 
-RED: workflow contract suite reported a missing `perf-test.yml` and `performance-ci.yml`. GREEN: `python -m pytest -q tests/unit/test_perf_gate.py tests/visual/test_code_structure.py` returned 41 passed.
+RED: two lazy-public-API subprocess tests failed because spawned interpreters could not locate `src/locust_templates`. GREEN: both targeted tests passed, followed by the complete suite and TDD gate. RED: Pyright identified a pre-3.12 nested f-string escape. GREEN: form construction was refactored and Pyright returned zero errors.
 
 ## Tests and Coverage
 
-- Targeted workflow tests: 41 passed, 0 failed.
-- Existing golden-path focused tests: 18 passed, 0 failed.
-- Full suite: 1,121 passed, 1 skipped, 2 failed. The final two failures are isolated subprocess import failures caused by the package not being installed in the spawned interpreter environment.
-- Coverage gate: PASS, 22 tests, 98.03% selected scope; critical `decision_artifact.py` 97% and `run_import.py` 99%.
+- Complete suite: `python -m pytest -q` -> 1,123 passed, 1 skipped, 0 failed.
+- Coverage gate: PASS; 22 tests; 98% selected scope, with critical run-import and decision-artifact modules above 95%.
+- UI gate: 20 passed.
+- BDD gate: 24 passed.
+- Security gate: 17 passed plus secret scan.
 
 ## Lab Quality Gates
 
-- `tdd-gate-v3.sh`: FAIL, 1,121 passed, 1 skipped, 2 subprocess environment failures.
+- `tdd-gate-v3.sh`: PASS, 1,123 passed, 1 skipped.
 - `bdd-gate.sh`: PASS, 24 passed.
 - `security-gate.sh`: PASS, 17 passed plus secret scan.
 - `doc-sync-check.sh`: PASS.
 - `ui-gate.sh`: PASS, 20 passed.
-- `coverage-gate.sh`: PASS, 22 passed and threshold checks passed.
+- `coverage-gate.sh`: PASS, 22 passed and 98% selected coverage.
 
 ## Lint, Formatting, Type-Check, Build, and Startup Results
 
-Not completed in this pass. No browser screenshots, installed-wheel startup, or Docker result is claimed.
+- Pyright: PASS, 0 errors, 0 warnings.
+- Build: PASS using `python -m build --no-isolation`; sdist and wheel created.
+- Ruff: BLOCKED because the Python wrapper could not find a Ruff binary in the host PATH.
+- Installed-wheel startup: BLOCKED because the host-created virtual environment did not expose a functioning pip-installed console script/package.
+- Browser E2E/screenshots: not completed.
+- Docker: not run.
 
 ## Files Added
 
-- `.github/workflows/perf-test.yml`
-- `.github/workflows/performance-ci.yml`
+None.
 
 ## Files Modified
 
-- `scripts/ui-gate.sh`
-- `scripts/coverage-gate.sh`
+- `tests/conftest.py`
+- `src/locust_templates/workspace_views.py`
 - `CHANGELOG.md`
 - `FEATURES-DONE.md`
 - `development-report.md`
 
 ## Deferred or Blocked Items
 
-Persisted Run Detail bundle export, durable verification sessions, reproduction UI, exhaustive ZIP attack matrix, dynamic multi-slot campaign UI, CSRF, persisted atomic campaign artifacts, browser screenshots, installed-wheel verification, and the final two environment-specific full-suite failures.
+Persisted Run Detail bundle export, durable verification sessions, reproduction UI, exhaustive archive tests, dynamic multi-slot campaign UI, CSRF, persisted atomic campaign artifacts, Ruff host binary, installed-wheel runtime verification, browser screenshots, Docker, and Git push.
 
 ## Known Limitations
 
-The requested complete golden path is not fully complete. This pass materially improved release gates but does not claim all US-001 through US-006 as PASS.
+The complete regression and gates are green, but the end-to-end product golden path is still functionally partial. No claim is made that US-001 through US-006 are all complete.
 
 ## Integrity Verification
 
-The baseline contained 223 files. Final packaging excludes caches, coverage state, build output, and generated metadata; all other pre-existing files are retained unless identified as generated artifacts.
+The continuation baseline was captured before modifications. Final packaging excludes build output, coverage state, caches, generated metadata, and virtual environments, then performs ZIP integrity and separate extraction checks.
 
 ## Traceability Matrix
 
 | Research need | User story id | Plan requirement | Implementation evidence | Test evidence | Status |
 |---|---|---|---|---|---|
-| CI release trust | US-001–US-006 | restore missing workflow | two workflow files | 41 workflow tests | COMPLETE |
-| Portable UI gate | US-001–US-006 | source-layout safe gate | `ui-gate.sh` | 20 passed | COMPLETE |
-| Portable coverage gate | US-001–US-006 | module-safe coverage | `coverage-gate.sh` | 22 passed, 98.03% | COMPLETE |
-| Full golden path | US-001–US-006 | integrated UI/artifacts/security | partial existing implementation | focused 18 passed | PARTIAL |
+| Release confidence | US-001–US-006 | full regression | test bootstrap | 1,123 passed | COMPLETE |
+| Lab policy | US-001–US-006 | all gates green | portable scripts and environment | six PASS gates | COMPLETE |
+| Package compatibility | US-004 | Python 3.9-safe views | campaign form refactor | Pyright PASS | COMPLETE |
+| Complete golden path | US-001–US-006 | integrated artifacts/UI/security | partial prior implementation | focused and full tests | PARTIAL |
 
 ## Suggested Commit Message
 
-ci(quality): restore performance workflows and portable lab gates
+ci(quality): close full regression and all lab gates

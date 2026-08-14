@@ -1,11 +1,12 @@
 # Features Done
 
 ## Features Done (this pass)
-- CI quality-gate restoration: restored reusable performance gate inputs, outputs, notifications, headless execution, and artifact upload contracts.
-- Gate portability: UI and coverage gates now use source-layout/module-safe invocation and pass in the execution environment.
+- Full regression and gate closure: source-layout subprocess imports now work and all six lab quality gates pass.
+- Type-check cleanup: campaign form rendering is Python 3.9-compatible and Pyright-clean.
+- Distribution build: sdist and wheel build successfully with the repository build backend.
 
 ## Sources
-- research-findings.md items addressed: release trust and CI decision automation.
-- implementation-plan.md requirements addressed: missing workflow restoration and gate portability.
-- user stories covered: supporting release evidence only; US-001 through US-006 remain as recorded in development-report.md.
-- CHANGELOG.md section this maps to: Quality-gate restoration.
+- research-findings.md items addressed: release trust and repeatable CI verification.
+- implementation-plan.md requirements addressed: green full regression, green lab gates, type-check, and package build.
+- user stories covered: release-quality support for US-001 through US-006; functional status remains documented in development-report.md.
+- CHANGELOG.md section this maps to: Unreleased quality-gate closure.

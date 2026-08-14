@@ -1,3 +1,10 @@
+import os
+from pathlib import Path as _Path
+
+# Ensure spawned Python subprocesses see the source-layout package during tests.
+_src = str((_Path(__file__).resolve().parents[1] / "src"))
+os.environ["PYTHONPATH"] = _src + (os.pathsep + os.environ["PYTHONPATH"] if os.environ.get("PYTHONPATH") else "")
+
 """Shared fixtures for locust-performance-kit tests."""
 
 import os
