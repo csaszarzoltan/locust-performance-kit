@@ -268,3 +268,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added offline analyzer reproduction with MATCH, DRIFT, and UNREPRODUCIBLE results plus `locust-kit verify --reproduce`.
 - Added transactional campaign draft replacement, run eligibility checks, and optimistic-concurrency conflict protection.
 - Added real-I/O reproduction and campaign concurrency/finalization integration tests.
+
+#### Quality-gate restoration
+- Restored reusable performance quality-gate and headless performance CI workflows.
+- Made UI and coverage gate invocation portable for source-layout and module execution.

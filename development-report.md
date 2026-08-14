@@ -2,98 +2,91 @@
 
 ## Implemented Scope
 
-Completed offline analyzer reproduction for verified bundles, added CLI `--reproduce`, normalized host-specific evidence paths for canonical comparison, and added transactional multi-slot campaign replacement with optimistic concurrency, eligibility validation, and finalized immutability.
+Restored the missing GitHub Actions performance workflows and repaired UI/coverage gate portability. Preserved the existing verification reproduction and campaign concurrency implementation.
 
 ## Research Items Addressed
 
-One-command local revalidation and campaign governance/history.
+Release-trust closure, reusable CI performance gating, headless execution, artifact retention, and portable local quality gates.
 
 ## Plan Requirements Completed
 
-Completed the reproduction domain/CLI path and repository-level campaign edit/concurrency path. Existing bundle verification, campaign readiness, persistence, views, and exports were preserved.
+Completed the missing `.github/workflows/perf-test.yml` contract, restored `.github/workflows/performance-ci.yml`, and repaired `ui-gate.sh` and `coverage-gate.sh` invocation.
 
 ## User Stories Covered
 
-- US-001: PARTIAL, existing deterministic bundle core retained; persisted Run Detail export remains incomplete.
-- US-002: PARTIAL, valid/hash/extra-member tests pass; exhaustive attack matrix and durable sessions remain incomplete.
-- US-003: PASS for complete-source MATCH and missing/invalid UNREPRODUCIBLE; integrity-valid policy DRIFT is supported by canonical diff but lacks a dedicated end-to-end mutation test.
-- US-004: PARTIAL, transactional multi-slot repository edit and stale-token conflict pass; dynamic multi-row edit UI remains incomplete.
-- US-005: PASS at domain level from prior implementation.
-- US-006: PARTIAL, finalized immutability passes; atomic persisted artifacts remain incomplete.
+- US-001: PARTIAL.
+- US-002: PARTIAL.
+- US-003: PASS at domain/CLI level.
+- US-004: PARTIAL.
+- US-005: PASS at domain level.
+- US-006: PARTIAL.
 
 ## Architecture Decisions
 
-Extended `verification_bundle.py` with reproduction rather than adding a second analyzer. Reused `analysis_service.analyze_decision`, isolated temporary extraction, canonical path normalization, and existing result dataclass. Added repository update behavior without changing existing tables or public campaign creation.
+Kept CI restoration declarative and additive. Gate scripts now invoke source-layout imports with `PYTHONPATH=src` and coverage through `python -m coverage`.
 
 ## UI and UX Implementation
 
-Existing Verify and Campaign screens were retained. No new browser screen was added in this pass because durable verification sessions and reproduction UI were not completed. No screenshot or visual-quality claim is made.
+No new UI was implemented in this pass. The UI gate now executes successfully. Browser screenshots and E2E visual inspection remain blocked/not completed.
 
 ## TDD Evidence
 
-- RED: `test_us_003_real_io_reproduction_match` initially failed with DRIFT because packaged source prefixes changed finding paths.
-- GREEN: canonical comparison normalized only source-prefix paths and excluded generated hash metadata; 5 verification tests passed.
-- GREEN: campaign multi-slot edit/conflict and finalized immutability tests added; 5 campaign tests passed.
+RED: workflow contract suite reported a missing `perf-test.yml` and `performance-ci.yml`. GREEN: `python -m pytest -q tests/unit/test_perf_gate.py tests/visual/test_code_structure.py` returned 41 passed.
 
 ## Tests and Coverage
 
-- Focused final command: `python -m pytest -q tests/unit/test_verification_bundle.py tests/unit/test_campaigns.py tests/integration/test_verification_flow.py tests/integration/test_campaign_flow.py tests/unit/test_workspace_runs.py tests/integration/test_run_import_flow.py --cov=locust_templates.verification_bundle --cov=locust_templates.campaigns --cov-report=term`.
-- Result: 18 passed, 0 failed.
-- Coverage: `campaigns.py` 95%, `verification_bundle.py` 89%, combined selected domain scope 90%.
-- Full suite: 1,096 passed, 1 skipped, 6 failed, 21 errors. Failures/errors remain dominated by the pre-existing missing `.github/workflows/perf-test.yml` contract.
+- Targeted workflow tests: 41 passed, 0 failed.
+- Existing golden-path focused tests: 18 passed, 0 failed.
+- Full suite: 1,121 passed, 1 skipped, 2 failed. The final two failures are isolated subprocess import failures caused by the package not being installed in the spawned interpreter environment.
+- Coverage gate: PASS, 22 tests, 98.03% selected scope; critical `decision_artifact.py` 97% and `run_import.py` 99%.
 
 ## Lab Quality Gates
 
+- `tdd-gate-v3.sh`: FAIL, 1,121 passed, 1 skipped, 2 subprocess environment failures.
 - `bdd-gate.sh`: PASS, 24 passed.
 - `security-gate.sh`: PASS, 17 passed plus secret scan.
 - `doc-sync-check.sh`: PASS.
-- `tdd-gate-v3.sh`: FAIL via full regression, 1,096 passed, 1 skipped, 6 failed, 21 errors.
-- `ui-gate.sh`: not rerun; prior environment/path failure remains unresolved.
-- `coverage-gate.sh`: not rerun; focused measured scope reached 90%.
+- `ui-gate.sh`: PASS, 20 passed.
+- `coverage-gate.sh`: PASS, 22 passed and threshold checks passed.
 
 ## Lint, Formatting, Type-Check, Build, and Startup Results
 
-Syntax and focused integration tests pass. Lint, formatting, Pyright, isolated wheel build, browser E2E, screenshots, and Docker were not completed in this pass. Existing startup behavior was not changed.
+Not completed in this pass. No browser screenshots, installed-wheel startup, or Docker result is claimed.
 
 ## Files Added
 
-- `tests/integration/test_verification_flow.py`
-- `tests/integration/test_campaign_flow.py`
+- `.github/workflows/perf-test.yml`
+- `.github/workflows/performance-ci.yml`
 
 ## Files Modified
 
-- `src/locust_templates/verification_bundle.py`
-- `src/locust_templates/cli_analyze.py`
-- `src/locust_templates/product_workspace.py`
-- `docs/decision-verification.md`
-- `docs/release-campaigns.md`
+- `scripts/ui-gate.sh`
+- `scripts/coverage-gate.sh`
 - `CHANGELOG.md`
 - `FEATURES-DONE.md`
 - `development-report.md`
 
 ## Deferred or Blocked Items
 
-Run Detail bundle artifact orchestration, durable verification sessions and reproduction UI, exhaustive archive matrix, dynamic multi-slot edit UI, CSRF retrofit, atomic persisted campaign artifacts, green full regression/gates, browser screenshots, and Git push.
+Persisted Run Detail bundle export, durable verification sessions, reproduction UI, exhaustive ZIP attack matrix, dynamic multi-slot campaign UI, CSRF, persisted atomic campaign artifacts, browser screenshots, installed-wheel verification, and the final two environment-specific full-suite failures.
 
 ## Known Limitations
 
-Reproduction requires source names under `sources/current` and optional `sources/baseline` ending in Locust CSV suffixes. Canonical comparison intentionally ignores generated decision hash metadata and normalizes source filename prefixes while retaining measured data and policy.
+The requested complete golden path is not fully complete. This pass materially improved release gates but does not claim all US-001 through US-006 as PASS.
 
 ## Integrity Verification
 
-The input baseline contains 221 pre-existing files. Final packaging reconciles removals/additions, excludes cache/build artifacts, and separately extracts the deliverable.
+The baseline contained 223 files. Final packaging excludes caches, coverage state, build output, and generated metadata; all other pre-existing files are retained unless identified as generated artifacts.
 
 ## Traceability Matrix
 
 | Research need | User story id | Plan requirement | Implementation evidence | Test evidence | Status |
 |---|---|---|---|---|---|
-| Portable evidence | US-001 | persisted export | existing builder only | existing deterministic test | PARTIAL |
-| Safe verification | US-002 | exhaustive archive contract | verifier exact-member check | extra-member test | PARTIAL |
-| Offline revalidation | US-003 | MATCH/DRIFT/UNREPRODUCIBLE | `reproduce_bundle`, CLI flag | real-I/O MATCH test | COMPLETE |
-| Multi-slot governance | US-004 | transactional edit/concurrency | `update_campaign` | edit/conflict test | PARTIAL |
-| Drift visibility | US-005 | policy/baseline/freshness | existing campaign domain | existing policy drift tests | COMPLETE |
-| Immutable release record | US-006 | finalized immutability and atomic artifacts | update rejects FINALIZED | finalized test | PARTIAL |
+| CI release trust | US-001–US-006 | restore missing workflow | two workflow files | 41 workflow tests | COMPLETE |
+| Portable UI gate | US-001–US-006 | source-layout safe gate | `ui-gate.sh` | 20 passed | COMPLETE |
+| Portable coverage gate | US-001–US-006 | module-safe coverage | `coverage-gate.sh` | 22 passed, 98.03% | COMPLETE |
+| Full golden path | US-001–US-006 | integrated UI/artifacts/security | partial existing implementation | focused 18 passed | PARTIAL |
 
 ## Suggested Commit Message
 
-feat(trust): complete offline reproduction and campaign concurrency
+ci(quality): restore performance workflows and portable lab gates

@@ -9,5 +9,5 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q \
   --cov=locust_templates.comparison_view \
   --cov=locust_templates.analysis_service \
   --cov-report=term-missing --cov-fail-under=90
-coverage report --include='*/run_import.py,*/decision_artifact.py' --fail-under=95
+python -m coverage report --include='*/run_import.py,*/decision_artifact.py' --fail-under=95
 printf 'PASS coverage-gate\n'

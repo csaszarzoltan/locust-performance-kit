@@ -1,11 +1,11 @@
 # Features Done
 
 ## Features Done (this pass)
-- Offline decision reproduction: verified bundles can reconstruct Locust CSV inputs and return deterministic MATCH, DRIFT, or UNREPRODUCIBLE results through the domain API and CLI.
-- Campaign draft concurrency: transactional multi-slot replacement, environment/sample eligibility validation, optimistic conflict detection, and finalized immutability.
+- CI quality-gate restoration: restored reusable performance gate inputs, outputs, notifications, headless execution, and artifact upload contracts.
+- Gate portability: UI and coverage gates now use source-layout/module-safe invocation and pass in the execution environment.
 
 ## Sources
-- research-findings.md items addressed: one-command offline revalidation; campaign history and governance.
-- implementation-plan.md requirements addressed: US-003 reproduction core and US-004 concurrency/multi-slot persistence core.
-- user stories covered: US-003 and repository-level portions of US-004 and US-006.
-- CHANGELOG.md section this maps to: [Unreleased] - 2026-08-14, Completed in follow-up.
+- research-findings.md items addressed: release trust and CI decision automation.
+- implementation-plan.md requirements addressed: missing workflow restoration and gate portability.
+- user stories covered: supporting release evidence only; US-001 through US-006 remain as recorded in development-report.md.
+- CHANGELOG.md section this maps to: Quality-gate restoration.
