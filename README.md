@@ -10,7 +10,7 @@
 
 Production-ready Locust load testing templates, CI/CD pipelines, and monitoring integrations for enterprise-grade performance testing.
 
-Built by a performance engineer with 6+ years at a major Swiss bank. These templates have been battle-tested on real banking applications handling millions of transactions.
+Built by a performance engineer with 12+ years of experience in performance testing. The templates are starting points for load testing APIs and gating CI pipelines on performance results.
 
 ## Trustworthy run-to-decision workflow (this pass)
 
@@ -608,7 +608,7 @@ All 1068 tests pass (134 pre-existing + 38 for v1.1.0 + 116 for v1.2.0 + 98 for 
 ## Performance Thresholds (Typical)
 
 ```yaml
-# Example thresholds for banking applications
+# Example thresholds for a high-volume API
 p95_latency: 500ms
 p99_latency: 1000ms
 error_rate: 0.1%
