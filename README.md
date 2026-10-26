@@ -853,7 +853,6 @@ Run Detail now shows baseline compatibility, endpoint-level current/baseline val
 - [Döntések / tanulságok](docs/decisions/) — javított hibák és anti-minták
 - [Specifikációk](docs/specs/) — feature-ök kanonikus követelményei
 
-- [Módszertan](docs/METHODOLOGY.md) — a lab fejlesztési módszertana (kötelező olvasmány)
 
 ## Offline verification and release campaigns
 
